@@ -177,9 +177,36 @@ population numbers alone are useless without the geometry.
 ## Limitations to volunteer before you are asked
 
 - Only **288 of 1,764 cells** contain an active listing; the rest are predictions.
-- The **occupancy model's test R² is 0.038**. The revenue model's is 0.258. Both are reported
-  untrimmed, on a heavy-tailed target.
+- The **occupancy model has no real skill**: test R² −0.069 under grouped cross-validation. The
+  revenue model's is 0.232. Both are reported untrimmed, on a heavy-tailed target.
 - The **500m and 2km sensitivity runs and the six spatial outputs are not produced**.
 - **Chapter 3 is not synchronised** with the code — the 1,928-cell figure, the ~64-per-municipality
   figure, the outlier-screening sentence and the administrative-boundary extent all differ.
 - **Chapter 3's file is malformed** and its 29 equation images are absent from the repository.
+
+## After the reweighting (ADR 0019)
+
+- The composite is now the **expanded indicator set** (13 indicators) weighted by **EWM blended with
+  random-forest permutation importance** (`BLEND_RATIO` 0.5). All three weight sets — legacy
+  five-indicator EWM, expanded-set EWM, expanded-set hybrid — are written side by side, so the
+  "before" survives for comparison.
+- **Decomposing POI made it worse under EWM**: the six-category bloc weight *rose* to 0.97
+  (province) and 0.98 (rural), up from 0.86. The hybrid is what brings it down: **0.69 (province)
+  and 0.59 (rural)**, with the largest single indicator at 0.23 and 0.16. The equal-weight reference
+  puts the bloc at 0.46.
+- **The POI bloc is still the largest bloc, and the model agrees it matters**:
+  `poi_density_recreation` carries the highest permutation importance of any composite indicator.
+  Reported as a finding, not hidden.
+- **The two predictions are diluted** to ~0.003 each under the blend, because they carry no
+  permutation importance. The composite is closer to a spatial-amenity score than a
+  predicted-performance score; this is a recorded consequence.
+- **Cross-validation now groups by grid cell**, removing same-cell leakage (ADR-free, Phase 4 of the
+  weighting work). Province revenue R² 0.232 grouped vs 0.239 random; the **rural revenue R² of 0.524
+  was almost entirely leakage and falls to 0.0035**. This is the single most important correction.
+- **A `log1p` transform was tested and rejected**: it moved the EWM bloc weight only 0.970 → 0.935,
+  so skew is not the cause of the concentration.
+- Every rural output now carries `distance_to_nearest_training_listing` and
+  `has_nearby_training_data`, so far-extrapolated cells are visible on the map.
+- **The POI audit's raw-tag analytics cannot run** on the shipped extract (no `poi_tag_key` /
+  `poi_tag_value` / `is_catch_all` columns); the category-based EWM stress test runs and confirms
+  the split-bloc result.

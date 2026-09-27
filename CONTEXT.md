@@ -9,8 +9,24 @@ A fixed 1km x 1km square of the surface of Laguna. The spatial unit that everyth
 _Avoid_: Tile, patch, zone, hex
 
 **Suitability indicator**:
-A single measured attribute of a grid cell that contributes to the composite assessment. The study uses five: predicted annual revenue, predicted occupancy, POI density, distance to the nearest tourist attraction, and distance to the nearest transportation facility.
+A single measured attribute of a grid cell that contributes to the composite assessment. The thesis specifies five: predicted annual revenue, predicted occupancy, POI density, distance to the nearest tourist attraction, and distance to the nearest transportation facility.
 _Avoid_: Factor, variable, metric, criterion
+
+**Composite indicator set**:
+The expanded set of place-characteristics the composite suitability score is currently computed over: the six POI category densities, the distances to the nearest transport facility, tourist attraction, Laguna de Bay, other water, and the poblacion, alongside predicted revenue and predicted occupancy. Population density and the aggregate POI density are deliberately outside it.
+_Avoid_: Feature set, predictor set
+
+**POI bloc**:
+The six POI category densities taken together. Their summed weight is the measure of how far the composite leans on points of interest.
+_Avoid_: POI factor, POI score
+
+**Hybrid weight**:
+An indicator's weight after blending its entropy weight with its random-forest permutation importance. The plain entropy weight is retained alongside it for comparison.
+_Avoid_: Blended weight, composite weight
+
+**Equal-weight reference**:
+A uniform weighting (one over the number of indicators) computed alongside the entropy and hybrid weights, as a method-independent reference point.
+_Avoid_: Baseline weight, naive score
 
 **Composite suitability score**:
 The single number per grid cell produced by weighting all suitability indicators and summing them.

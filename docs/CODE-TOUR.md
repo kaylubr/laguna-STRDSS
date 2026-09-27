@@ -104,14 +104,15 @@ use) · `data/README.md` (what the raw data is and what is known to be wrong wit
   `classify.py` (majority-area cell class, listing labels, the three population levels),
   `training.py`, `prediction.py`, `suitability.py`, `pipeline.py`. Writes `data/processed/rural/`.
 - **`scripts/`** — `osm_snapshot.py` (PBF extraction), `run_suitability.py` (scoring stage),
-  `run_rural.py` (rural branch), `build_visualisation.py` + `visualisation_template.html`
-  (scratch viewer, untracked).
+  `run_rural.py` (rural branch), `diagnose_indicators.py` (indicator diagnostics gate),
+  `audit_pois.py` (POI/weight stress test), `build_visualisation.py` + `visualisation_template.html`
+  (scratch viewer).
 
 ---
 
 ## The ADR index — your answer key
 
-`docs/adr/`, sixteen files, each recording one decision Chapter 3 leaves open. Read them all; they
+`docs/adr/`, nineteen files, each recording one decision Chapter 3 leaves open. Read them all; they
 are short, and together they are the "why" layer over the "what".
 
 | ADR | The question it answers |
@@ -132,6 +133,9 @@ are short, and together they are the "why" layer over the "what".
 | 0014 | Why `FisherJenks` rather than `NaturalBreaks` |
 | 0015 | How the prediction-to-cell join is guaranteed correct |
 | 0016 | What makes a listing rural, what makes a cell rural, and why the two differ |
+| 0017 | What the denominator of a cell's barangay share is |
+| 0018 | Why the two rural definitions are allowed to disagree |
+| 0019 | Why the composite indicator set was expanded, and why weighting is now EWM blended with RFI |
 
 ---
 
@@ -153,15 +157,19 @@ are short, and together they are the "why" layer over the "what".
 | Cells straddling municipal boundaries | 508, up to 4 each |
 | POIs total / counted in a cell / outside | 18,280 / 17,967 / 313 |
 | Tourist attractions / transport facilities | 370 / 143 |
-| Revenue model, test | MAE 332,564 · RMSE 680,041 · **R² 0.2575** (n 247) |
-| Revenue model, train | R² 0.3541 (n 984) |
-| Occupancy model, test | MAE 0.1024 · RMSE 0.1340 · **R² 0.0379** |
-| Occupancy model, train | R² 0.2410 |
-| Chosen hyperparameters | revenue: 500 trees, depth 10 · occupancy: 200 trees, depth 10 |
-| Entropy weights | POI 0.8614 · revenue 0.0659 · occupancy 0.0419 · transport distance 0.0206 · attraction distance 0.0102 |
-| Composite score range | 0.0193 – 0.9073 |
-| Class counts | 1,538 / 167 / 47 / 9 / 3 |
-| Test suite | 105 passing |
+| Revenue model, test — grouped CV (primary) | MAE 277,723 · RMSE 483,881 · **R² 0.2322** (n 152) |
+| Revenue model, test — random split (before) | **R² 0.2390** (n 247) |
+| Occupancy model, test — grouped CV (primary) | MAE 0.0981 · RMSE 0.1381 · **R² −0.0688** (n 152) |
+| Occupancy model, test — random split (before) | **R² 0.0322** (n 247) |
+| Rural revenue, grouped vs random | **0.0035 vs 0.524** — the 0.524 was leakage |
+| Chosen hyperparameters | revenue: 200 trees, depth 10 · occupancy: 200 trees, depth 10 |
+| Composite weighting | hybrid EWM + RFI over 13 indicators (ADR 0019) |
+| POI-bloc weight, province | EWM 0.970 · **hybrid 0.686** · equal 0.462 |
+| POI-bloc weight, rural | EWM 0.971 · **hybrid 0.585** |
+| Largest single hybrid weight | province 0.229 (`poi_density_recreation`) · rural 0.160 (`poi_density_tourist_attraction`) |
+| Composite score range | 0.0314 – 0.6006 |
+| Class counts | 140 / 394 / 627 / 542 / 61 |
+| Test suite | 202 passing |
 
 ## Commands worth knowing
 
@@ -187,7 +195,15 @@ and class), `model_summary.json`, `suitability_summary.json`, `training_observat
 3. **Chapter 3 is not synchronised with the code.** It still says 1,928 cells and ~64 per
    municipality, that extreme values are screened for outliers, and that the extent is the
    administrative boundary. The full reconciliation is in the audit.
-4. **The occupancy model barely predicts** (test R² 0.038), and only 288 of 1,764 cells have any
-   observation behind them.
+4. **The occupancy model barely predicts** (grouped test R² −0.069), and only 288 of 1,764 cells have
+   any observation behind them.
 5. **`docs/thesis-chr3.md` is malformed.** Its newlines were replaced by non-breaking spaces, so it
    is one 27 KB line, and its 29 equation images are not in the repository at all.
+6. **The POI audit's raw-tag analytics cannot run on the shipped extract.** `scripts/audit_pois.py`
+   needs `poi_tag_key` / `poi_tag_value` / `is_catch_all` columns that `laguna_pois.parquet` does not
+   carry (the committed extractor never emitted them), so it runs the category-based EWM stress test
+   only and reports the tag inventory as unavailable. Regenerating the extract from the local PBF
+   would risk the study's POI counts.
+7. **The two predictions are diluted in the hybrid.** They carry no permutation importance, so the
+   blend leaves them at roughly 0.003 each; the composite leans on the spatial indicators. Recorded
+   in ADR 0019, not hidden.
