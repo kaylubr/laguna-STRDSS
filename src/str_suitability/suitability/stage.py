@@ -1,6 +1,12 @@
 import pandas as pd
 
-from str_suitability.config import SUITABILITY_INDICATORS
+from str_suitability.config import (
+    BLEND_RATIO,
+    EWM_WEIGHTING,
+    HYBRID_WEIGHTING,
+    POI_BLOC_INDICATORS,
+    SUITABILITY_INDICATOR_DIRECTIONS,
+)
 from str_suitability.suitability.classify import (
     CLASS_COUNT,
     CLASS_LABELS,
@@ -13,12 +19,50 @@ from str_suitability.suitability.composite_score import (
     composite_suitability_score,
 )
 from str_suitability.suitability.entropy_weights import weights_from_normalized
-from str_suitability.suitability.normalize import indicator_from_normalized, minimum_maximum_normalize
+from str_suitability.suitability.hybrid_weights import bloc_weight, equal_weights, hybrid_weights
+from str_suitability.suitability.normalize import (
+    indicator_from_normalized,
+    minimum_maximum_normalize,
+    normalized_column,
+)
 
 
-def compute_suitability(grid: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-    normalized = minimum_maximum_normalize(grid)
-    weights = weights_from_normalized(normalized)
+def _named(weights: pd.Series) -> dict[str, float]:
+    return {
+        indicator_from_normalized(column): float(weight) for column, weight in weights.items()
+    }
+
+
+def compute_suitability(
+    grid: pd.DataFrame,
+    directions: dict[str, str] | None = None,
+    weighting: str = EWM_WEIGHTING,
+    rfi_weights: pd.Series | None = None,
+    transform=None,
+) -> tuple[pd.DataFrame, dict]:
+    directions = (
+        SUITABILITY_INDICATOR_DIRECTIONS if directions is None else dict(directions)
+    )
+    normalized = minimum_maximum_normalize(grid, directions=directions, transform=transform)
+    entropy = weights_from_normalized(normalized)
+
+    if weighting == EWM_WEIGHTING:
+        weights = entropy
+    elif weighting == HYBRID_WEIGHTING:
+        assert rfi_weights is not None, (
+            "hybrid weighting needs the random-forest permutation importances"
+        )
+        aligned_rfi = pd.Series(
+            rfi_weights.reindex(
+                [indicator_from_normalized(column) for column in normalized.columns]
+            ).to_numpy(),
+            index=normalized.columns,
+        )
+        weights = hybrid_weights(entropy, aligned_rfi)
+    else:
+        raise ValueError(f"unknown weighting method: {weighting}")
+
+    reference = equal_weights(normalized.columns)
     scores = composite_suitability_score(normalized, weights)
     labels, classification_report = classify_suitability(scores)
 
@@ -35,14 +79,19 @@ def compute_suitability(grid: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         "every retained grid cell must carry a suitability class"
     )
 
+    bloc_columns = [normalized_column(indicator) for indicator in POI_BLOC_INDICATORS]
     report = {
         "cells": int(len(result)),
-        "indicators": list(SUITABILITY_INDICATORS),
+        "indicators": list(directions),
         "class_count": CLASS_COUNT,
         "classification_method": CLASSIFICATION_METHOD,
-        "weights": {
-            indicator_from_normalized(column): float(weight) for column, weight in weights.items()
-        },
+        "weighting_method": weighting,
+        "blend_ratio": float(BLEND_RATIO) if weighting == HYBRID_WEIGHTING else None,
+        "weights": _named(weights),
+        "weights_ewm": _named(entropy),
+        "weights_equal": _named(reference),
+        "poi_bloc_weight": bloc_weight(weights, bloc_columns),
+        "poi_bloc_weight_ewm": bloc_weight(entropy, bloc_columns),
         "weight_sum": float(weights.sum()),
         "score_min": float(scores.min()),
         "score_max": float(scores.max()),

@@ -34,6 +34,7 @@ EXPECTED_MUNICIPALITY_COUNT = 30
 
 RURAL_AREA_SHARE_THRESHOLD = 0.5
 RURAL_PROCESSED_DIR = PROCESSED_DIR / "rural"
+NEARBY_TRAINING_THRESHOLD_KM = 5.0
 
 TEST_SIZE = 0.2
 CV_FOLDS = 5
@@ -60,5 +61,35 @@ SUITABILITY_INDICATOR_DIRECTIONS = {
 }
 
 SUITABILITY_INDICATORS = tuple(SUITABILITY_INDICATOR_DIRECTIONS)
+
+POI_BLOC_INDICATORS = (
+    "poi_density_restaurants",
+    "poi_density_commercial",
+    "poi_density_transportation",
+    "poi_density_recreation",
+    "poi_density_tourist_attraction",
+    "poi_density_other_facilities",
+)
+
+COMPOSITE_INDICATOR_DIRECTIONS = {
+    "poi_density_restaurants": "positive",
+    "poi_density_commercial": "positive",
+    "poi_density_transportation": "positive",
+    "poi_density_recreation": "positive",
+    "poi_density_tourist_attraction": "positive",
+    "poi_density_other_facilities": "positive",
+    "distance_to_nearest_transportation_facility": "negative",
+    "distance_to_nearest_tourist_attraction": "negative",
+    "distance_to_laguna_de_bay": "negative",
+    "distance_to_other_water": "negative",
+    "distance_to_poblacion": "negative",
+    "predicted_revenue": "positive",
+    "predicted_occupancy": "positive",
+}
+
+COMPOSITE_INDICATORS = tuple(COMPOSITE_INDICATOR_DIRECTIONS)
+
+EWM_WEIGHTING = "ewm"
+HYBRID_WEIGHTING = "hybrid"
 
 EARTH_RADIUS_KM = 6371.0

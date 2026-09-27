@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from str_suitability.config import SUITABILITY_INDICATOR_DIRECTIONS, SUITABILITY_INDICATORS
+from str_suitability.config import SUITABILITY_INDICATOR_DIRECTIONS
 from str_suitability.suitability.validate import (
     assert_within_unit_interval,
     validate_suitability_inputs,
@@ -20,12 +20,19 @@ def indicator_from_normalized(column: str) -> str:
     return column.removeprefix(NORMALIZED_PREFIX)
 
 
-def minimum_maximum_normalize(grid: pd.DataFrame) -> pd.DataFrame:
-    validate_suitability_inputs(grid)
+def minimum_maximum_normalize(
+    grid: pd.DataFrame, directions: dict[str, str] | None = None, transform=None
+) -> pd.DataFrame:
+    directions = (
+        SUITABILITY_INDICATOR_DIRECTIONS if directions is None else dict(directions)
+    )
+    validate_suitability_inputs(grid, indicators=tuple(directions), directions=directions)
 
     normalized = pd.DataFrame(index=grid.index)
-    for indicator in SUITABILITY_INDICATORS:
+    for indicator in directions:
         values = pd.to_numeric(grid[indicator], errors="raise").astype(float)
+        if transform is not None:
+            values = transform(values)
         minimum = float(values.min())
         maximum = float(values.max())
         assert maximum > minimum, (
@@ -34,7 +41,7 @@ def minimum_maximum_normalize(grid: pd.DataFrame) -> pd.DataFrame:
         )
 
         span = maximum - minimum
-        direction = SUITABILITY_INDICATOR_DIRECTIONS[indicator]
+        direction = directions[indicator]
         if direction == NEGATIVE_DIRECTION:
             normalized[normalized_column(indicator)] = (maximum - values) / span
         elif direction == POSITIVE_DIRECTION:
