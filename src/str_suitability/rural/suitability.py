@@ -1,6 +1,8 @@
 import geopandas as gpd
 import pandas as pd
 
+from str_suitability.config import EWM_WEIGHTING, NEARBY_TRAINING_THRESHOLD_KM
+from str_suitability.features.accessibility import distance_to_nearest_km
 from str_suitability.rural.classify import (
     CELL_CLASS_COLUMN,
     CELL_ID_COLUMN,
@@ -15,6 +17,8 @@ from str_suitability.suitability.stage import compute_suitability
 RURAL_SCORE_COLUMN = "rural_composite_suitability_score"
 RURAL_CLASS_COLUMN = "rural_suitability_class"
 IN_RURAL_ANALYSIS_COLUMN = "in_rural_analysis"
+NEARBY_DISTANCE_COLUMN = "distance_to_nearest_training_listing"
+HAS_NEARBY_COLUMN = "has_nearby_training_data"
 
 RURAL_CLASS_LABELS = (
     "Rural — Very Low",
@@ -43,9 +47,16 @@ def rural_class_lookup() -> dict[str, str]:
     return dict(zip(CLASS_LABELS, RURAL_CLASS_LABELS))
 
 
-def compute_rural_suitability(rural_cells: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, object]]:
+def compute_rural_suitability(
+    rural_cells: pd.DataFrame,
+    directions: dict[str, str] | None = None,
+    weighting: str = EWM_WEIGHTING,
+    rfi_weights: pd.Series | None = None,
+) -> tuple[pd.DataFrame, dict[str, object]]:
     assert len(rural_cells) > 0, "there are no rural cells to score"
-    scored, report = compute_suitability(rural_cells)
+    scored, report = compute_suitability(
+        rural_cells, directions=directions, weighting=weighting, rfi_weights=rfi_weights
+    )
 
     result = pd.DataFrame(
         {
@@ -66,6 +77,30 @@ def compute_rural_suitability(rural_cells: pd.DataFrame) -> tuple[pd.DataFrame, 
         }
     )
     return result, report
+
+
+def attach_training_support(
+    output: gpd.GeoDataFrame, observations: pd.DataFrame
+) -> tuple[gpd.GeoDataFrame, dict[str, object]]:
+    assert {"longitude", "latitude"} <= set(output.columns), (
+        "the rural output carries no coordinates to measure support distance from"
+    )
+    assert len(observations) > 0, "there are no fitted listings to measure training support against"
+    distances = distance_to_nearest_km(
+        output["longitude"].to_numpy(),
+        output["latitude"].to_numpy(),
+        observations["longitude"].to_numpy(),
+        observations["latitude"].to_numpy(),
+    )
+    result = output.copy()
+    result[NEARBY_DISTANCE_COLUMN] = distances
+    result[HAS_NEARBY_COLUMN] = distances <= NEARBY_TRAINING_THRESHOLD_KM
+    report = {
+        "threshold_km": float(NEARBY_TRAINING_THRESHOLD_KM),
+        "cells_with_nearby_training_data": int(result[HAS_NEARBY_COLUMN].sum()),
+        "median_distance_to_training_listing_km": float(pd.Series(distances).median()),
+    }
+    return gpd.GeoDataFrame(result, geometry="geometry", crs=output.crs), report
 
 
 def assemble_rural_output(

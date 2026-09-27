@@ -22,8 +22,13 @@ from str_suitability.rural.psa import (
     load_barangay_polygons,
     report_barangay_classification,
 )
-from str_suitability.rural.suitability import assemble_rural_output, compute_rural_suitability
+from str_suitability.rural.suitability import (
+    assemble_rural_output,
+    attach_training_support,
+    compute_rural_suitability,
+)
 from str_suitability.rural.training import build_rural_training_frame, rural_training_cell_classes
+from str_suitability.suitability.hybrid_weights import rf_importance_weights
 
 GRID_FILENAME = "grid_features.parquet"
 TARGETS_FILENAME = "airroi_targets.parquet"
@@ -76,10 +81,19 @@ def run_rural_pipeline(
     predictions = predict_rural_cells(
         rural_cells, {name: result["model"] for name, result in results.items()}, FEATURE_COLUMNS
     )
+    rfi = rf_importance_weights(
+        [results[name]["importance"] for name in MODEL_TARGETS],
+        list(config.COMPOSITE_INDICATOR_DIRECTIONS),
+    )
     scored, suitability_report = compute_rural_suitability(
-        rural_scoring_input(rural_cells, predictions)
+        rural_scoring_input(rural_cells, predictions),
+        directions=config.COMPOSITE_INDICATOR_DIRECTIONS,
+        weighting=config.HYBRID_WEIGHTING,
+        rfi_weights=rfi,
     )
     output, output_report = assemble_rural_output(grid, cell_classification, scored)
+    output, support_report = attach_training_support(output, merged)
+    output_report.update(support_report)
 
     prediction_report = {
         "rural_cells_predicted": int(len(rural_cells)),
