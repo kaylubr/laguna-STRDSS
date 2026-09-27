@@ -1,4 +1,3 @@
-import geopandas as gpd
 import pandas as pd
 
 from str_suitability.audit.density import (
@@ -6,15 +5,8 @@ from str_suitability.audit.density import (
     read_grid,
     rural_cell_ids,
     rural_rows,
-    tag_group_density,
-)
-from str_suitability.audit.poi_tags import (
-    ACCOMMODATION_VALUES,
-    VISITOR_AMENITY_VALUES,
-    tag_value_mask,
 )
 from str_suitability.config import SUITABILITY_INDICATOR_DIRECTIONS
-from str_suitability.rural.classify import CELL_ID_COLUMN
 from str_suitability.suitability.entropy_weights import WEIGHT_SUM_TOLERANCE, weights_from_normalized
 from str_suitability.suitability.inputs import join_predictions
 from str_suitability.suitability.normalize import (
@@ -24,11 +16,9 @@ from str_suitability.suitability.normalize import (
 )
 from str_suitability.taxonomy import PoiCategory
 
-POI_FILENAME = "laguna_pois.parquet"
 POI_INDICATOR = "poi_density_total"
 PREDICTED_COLUMNS = ("predicted_revenue", "predicted_occupancy")
-ACCOMMODATION_COLUMN = f"{DENSITY_PREFIX}accommodation"
-VISITOR_AMENITY_COLUMN = f"{DENSITY_PREFIX}visitor_amenity"
+VISITOR_CATEGORIES = ("tourist_attraction", "restaurants", "recreation")
 
 POI_CATEGORY_NAMES = tuple(str(category) for category in PoiCategory)
 NON_POI_INDICATORS = tuple(
@@ -36,18 +26,8 @@ NON_POI_INDICATORS = tuple(
 )
 
 
-def build_rural_scoring_frame(processed_dir, rural_dir, feature_dir) -> gpd.GeoDataFrame:
+def build_rural_scoring_frame(processed_dir, rural_dir, feature_dir=None) -> pd.DataFrame:
     grid = read_grid(processed_dir)
-    pois = gpd.read_parquet(feature_dir / POI_FILENAME)
-    groups = tag_group_density(
-        grid,
-        pois,
-        {
-            "accommodation": tag_value_mask(pois, "tourism", ACCOMMODATION_VALUES),
-            "visitor_amenity": tag_value_mask(pois, "tourism", VISITOR_AMENITY_VALUES),
-        },
-    )
-    grid = grid.merge(groups, on=CELL_ID_COLUMN, how="left", validate="one_to_one")
     rural = rural_rows(grid, rural_cell_ids(rural_dir))
     predictions = {
         column: pd.read_parquet(rural_dir / f"{column}.parquet") for column in PREDICTED_COLUMNS
@@ -72,20 +52,20 @@ def weights_with_poi_indicator(frame: pd.DataFrame, values: pd.Series) -> pd.Ser
     return weights_for_directions(modified, SUITABILITY_INDICATOR_DIRECTIONS)
 
 
+def category_total(frame: pd.DataFrame) -> pd.Series:
+    return frame[[f"{DENSITY_PREFIX}{name}" for name in POI_CATEGORY_NAMES]].sum(axis=1)
+
+
 def visitor_density(frame: pd.DataFrame) -> pd.Series:
-    return (
-        frame[f"{DENSITY_PREFIX}tourist_attraction"]
-        + frame[f"{DENSITY_PREFIX}restaurants"]
-        + frame[f"{DENSITY_PREFIX}recreation"]
-        + frame[ACCOMMODATION_COLUMN]
-    )
+    return frame[[f"{DENSITY_PREFIX}{name}" for name in VISITOR_CATEGORIES]].sum(axis=1)
 
 
 def poi_scenarios(frame: pd.DataFrame) -> dict[str, pd.Series]:
+    total = category_total(frame)
     values = {
-        "A all POIs": frame[POI_INDICATOR],
+        "A all POIs": total,
         "B visitor-relevant only": visitor_density(frame),
-        "C other_facilities removed": frame[POI_INDICATOR] - frame[f"{DENSITY_PREFIX}other_facilities"],
+        "C other_facilities removed": total - frame[f"{DENSITY_PREFIX}other_facilities"],
     }
     for category in POI_CATEGORY_NAMES:
         values[f"D {category} alone"] = frame[f"{DENSITY_PREFIX}{category}"]
@@ -96,7 +76,9 @@ def split_indicator_directions() -> dict[str, str]:
     directions = {
         indicator: SUITABILITY_INDICATOR_DIRECTIONS[indicator] for indicator in NON_POI_INDICATORS
     }
-    directions.update({f"{DENSITY_PREFIX}{category}": POSITIVE_DIRECTION for category in POI_CATEGORY_NAMES})
+    directions.update(
+        {f"{DENSITY_PREFIX}{category}": POSITIVE_DIRECTION for category in POI_CATEGORY_NAMES}
+    )
     return directions
 
 
