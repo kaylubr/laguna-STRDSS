@@ -28,6 +28,27 @@ TOURIST_ATTRACTION_TAGS = {
     ),
 }
 
+ACCOMMODATION_TAGS = {
+    "tourism": frozenset(
+        {
+            "hotel",
+            "motel",
+            "guest_house",
+            "hostel",
+            "chalet",
+            "apartment",
+            "camp_site",
+            "caravan_site",
+            "wilderness_hut",
+            "alpine_hut",
+        }
+    ),
+}
+
+VISITOR_AMENITY_TAGS = {
+    "tourism": frozenset({"information", "picnic_site"}),
+}
+
 TRANSPORT_FACILITY_TAGS = {
     "amenity": frozenset({"bus_station", "ferry_terminal"}),
     "public_transport": frozenset({"station"}),

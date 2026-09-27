@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Laguna STR suitability — scratch viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html, body { margin:0; height:100%; font:13px/1.45 system-ui, sans-serif; }
+  #map { position:absolute; inset:0; }
+  .panel { background:rgba(255,255,255,.95); padding:10px 12px; border-radius:6px;
+           box-shadow:0 1px 6px rgba(0,0,0,.3); width:310px; max-height:92vh; overflow:auto; }
+  .panel h1 { font-size:13px; margin:0 0 6px; }
+  .panel h2 { font-size:11px; text-transform:uppercase; letter-spacing:.04em;
+              margin:10px 0 4px; color:#555; }
+  .note { color:#7a2b00; background:#fff3e0; padding:6px 8px; border-radius:4px; margin:6px 0; }
+  .row { display:flex; align-items:center; gap:6px; margin:3px 0; }
+  .swatch { width:13px; height:13px; border:1px solid #444; border-radius:2px; flex:0 0 auto; }
+  .hollow { border-radius:50%; background:transparent !important; }
+  .num { margin-left:auto; font-variant-numeric:tabular-nums; color:#333; }
+  select { width:100%; margin-top:4px; }
+  .muted { color:#666; font-size:11px; }
+  .popup table { border-collapse:collapse; }
+  .popup td { padding:1px 8px 1px 0; font-variant-numeric:tabular-nums; }
+  .popup td:first-child { color:#555; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+const payload = __PAYLOAD__;
+
+const FIELD_KEYS = {
+  composite_suitability_score: 's', predicted_revenue: 'r', predicted_occupancy: 'o',
+  poi_density_total: 'p', distance_to_nearest_tourist_attraction: 'a',
+  distance_to_nearest_transportation_facility: 't', poi_count_total: 'n'
+};
+
+const map = L.map('map', { preferCanvas: true });
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+map.fitBounds(payload.bounds, { paddingTopLeft: [20, 20], paddingBottomRight: [340, 20] });
+
+const weights = Object.entries(payload.weights).sort((a, b) => b[1] - a[1])
+  .map(([k, v]) => `<div class="row"><span>${k}</span><span class="num">${v.toFixed(4)}</span></div>`)
+  .join('');
+const classLegend = payload.classes.map((label, i) =>
+  `<div class="row"><span class="swatch" style="background:${payload.classColors[i]}"></span>
+   <span>${label}</span><span class="num">${payload.cellCounts[i]}</span></div>`).join('');
+const categoryLegend = payload.categories.map((name, i) =>
+  `<div class="row"><span class="swatch" style="background:${payload.categoryColors[i]}"></span>
+   <span>${name}</span></div>`).join('');
+
+const outsideStart = payload.ruralClasses.length - 2;
+const ruralOutsideLegend = payload.ruralClasses.slice(outsideStart).map((label, offset) =>
+  `<div class="row"><span class="swatch" style="background:${payload.ruralClassColors[outsideStart + offset]}"></span>
+   <span>${label}</span>
+   <span class="num">${offset === 0 ? payload.urbanCells : payload.unclassifiedCells}</span></div>`).join('');
+const ruralLegend = `
+  <div class="row"><span>inside the rural analysis</span>
+    <span class="num">${payload.ruralCells}</span></div>${ruralOutsideLegend}`;
+
+const info = L.control({ position: 'topright' });
+info.onAdd = () => {
+  const div = L.DomUtil.create('div', 'panel');
+  div.innerHTML = `
+    <h1>Laguna STR suitability — scratch viewer</h1>
+    <div class="note">Values are <b>predicted STR performance potential</b>, not observed
+      performance. Only <b>${payload.cellsWithListings} of ${payload.totalCells}</b> cells contain an
+      active listing; the rest are model predictions for that location.</div>
+    <div class="note">The grid is <b>province-wide</b>. The rural analysis scores
+      <b>${payload.ruralCells}</b> cells; the other <b>${payload.outsideRuralCells}</b> are
+      <b>outside the rural analysis</b> and are masked grey — the colors underneath them come from
+      the province-wide model.</div>
+    <div class="muted">POIs: ${payload.poiContributing.toLocaleString()} inside a retained cell
+      (counted in density) · ${(payload.poiTotal - payload.poiContributing).toLocaleString()}
+      outside (not counted)</div>
+    <h2>Shade cells by</h2>
+    <select id="field"><option value="class">Suitability class</option></select>
+    <div id="fieldnote" class="muted">five Jenks classes</div>
+    <h2>Rural analysis</h2>${ruralLegend}
+    <h2>Entropy weights</h2>${weights}
+    <h2>Suitability classes</h2>${classLegend}
+    <h2>POI categories</h2>${categoryLegend}
+    <div class="row"><span class="swatch hollow"></span>
+      <span>outside the grid — hollow</span></div>`;
+  L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
+  return div;
+};
+info.addTo(map);
+
+const select = document.getElementById('field');
+payload.numericFields.forEach(field => {
+  const option = document.createElement('option');
+  option.value = field.key;
+  option.textContent = field.label;
+  select.appendChild(option);
+});
+
+const ranges = {};
+payload.numericFields.forEach(field => {
+  const short = FIELD_KEYS[field.key];
+  const values = payload.cells.map(cell => cell[short]);
+  ranges[field.key] = [Math.min(...values), Math.max(...values)];
+});
+
+function ramp(t) {
+  const stops = [[247,251,255],[198,219,239],[107,174,214],[33,113,181],[8,48,107]];
+  const x = Math.min(0.9999, Math.max(0, t)) * (stops.length - 1);
+  const i = Math.floor(x), f = x - i;
+  const c = stops[i].map((v, k) => Math.round(v + (stops[i + 1][k] - v) * f));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+const RURAL_STATUS = {
+  0: 'inside the rural analysis',
+  1: 'urban — outside the rural analysis',
+  2: 'unclassified — outside the rural analysis'
+};
+
+function cellTable(cell) {
+  const rows = payload.numericFields.map(field =>
+    `<tr><td>${field.label}</td><td>${cell[FIELD_KEYS[field.key]].toLocaleString()}</td></tr>`
+  ).join('');
+  const ruralRows = `
+    <tr><td>Rural analysis</td><td>${RURAL_STATUS[cell.k]}</td></tr>
+    <tr><td>Rural suitability class</td>
+      <td><span class="swatch" style="display:inline-block;vertical-align:-2px;
+        background:${payload.ruralClassColors[cell.rc]}"></span>
+        ${payload.ruralClasses[cell.rc]}</td></tr>
+    <tr><td>Rural composite score</td>
+      <td>${cell.rs === null ? '—' : cell.rs.toLocaleString()}</td></tr>`;
+  return `<div class="popup"><b>${payload.classes[cell.c]}</b>
+    <div class="muted">${cell.m} · ${cell.id} · ${cell.l} active listing(s)</div>
+    <table>${rows}</table>
+    <table>${ruralRows}</table></div>`;
+}
+
+const cellLayer = L.layerGroup().addTo(map);
+const cellShapes = payload.cells.map(cell => cell.g.map(part => {
+  const shape = L.polygon(part, { color: '#444', weight: 0.4, fillOpacity: 0.75 });
+  shape.bindPopup(() => cellTable(cell));
+  shape.addTo(cellLayer);
+  return shape;
+}));
+
+const maskLayer = L.layerGroup().addTo(map);
+payload.cells.forEach(cell => {
+  if (cell.k === 0) return;
+  cell.g.forEach(part => L.polygon(part, {
+    color: '#555', weight: 0.6, dashArray: '3,3',
+    fillColor: payload.ruralClassColors[cell.rc], fillOpacity: 0.8
+  }).bindPopup(() => cellTable(cell)).addTo(maskLayer));
+});
+maskLayer.eachLayer(shape => shape.bringToFront());
+
+const poiLayer = L.layerGroup().addTo(map);
+payload.pois.forEach(record => {
+  const [lon, lat, category, name, attraction, transport, contributing, osmType, osmId] = record;
+  const url = `https://www.openstreetmap.org/${osmType}/${osmId}`;
+  const flags = [attraction ? 'tourist attraction' : '', transport ? 'transport facility' : '']
+    .filter(Boolean).join(' · ');
+  L.circleMarker([lat, lon], {
+    radius: contributing ? 3 : 2.5,
+    color: contributing ? payload.categoryColors[category] : '#555',
+    weight: 1,
+    fillColor: payload.categoryColors[category],
+    fillOpacity: contributing ? 0.85 : 0
+  }).bindTooltip(() => `<b>${name || '(unnamed)'}</b><br>${payload.categories[category]}${
+    flags ? ' · ' + flags : ''}<br>${lat.toFixed(5)}, ${lon.toFixed(5)}<br>${
+    contributing ? 'counted in its cell’s POI density' : 'outside the grid — not counted'}<br>
+    <a href="${url}" target="_blank" rel="noopener">${osmType}/${osmId} on OSM</a>`
+  ).addTo(poiLayer);
+});
+
+function styleCells(key) {
+  if (key === 'class') {
+    cellShapes.forEach((shapes, i) =>
+      shapes.forEach(shape =>
+        shape.setStyle({ fillColor: payload.classColors[payload.cells[i].c], fillOpacity: 0.75 })));
+    return;
+  }
+  const short = FIELD_KEYS[key];
+  const [lo, hi] = ranges[key];
+  const span = (hi - lo) || 1;
+  cellShapes.forEach((shapes, i) => {
+    const color = ramp((payload.cells[i][short] - lo) / span);
+    shapes.forEach(shape => shape.setStyle({ fillColor: color, fillOpacity: 0.85 }));
+  });
+}
+
+select.addEventListener('change', event => {
+  styleCells(event.target.value);
+  const field = payload.numericFields.find(f => f.key === event.target.value);
+  document.getElementById('fieldnote').textContent = field
+    ? (field.key.startsWith('distance')
+        ? `lower is better (negative indicator) · range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`
+        : `range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`)
+    : 'five Jenks classes';
+});
+
+styleCells('class');
+L.control.layers(null, {
+  'Grid cells (province-wide)': cellLayer,
+  'Outside rural analysis': maskLayer,
+  'POIs': poiLayer
+}, { collapsed: false }).addTo(map);
+</script>
+</body>
+</html>
