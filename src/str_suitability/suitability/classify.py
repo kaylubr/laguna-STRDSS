@@ -15,6 +15,12 @@ CLASS_LABELS = (
     "Very High Suitability",
 )
 
+TRAFFIC_CLASS_LABELS = (
+    "Low",
+    "Moderate",
+    "High",
+)
+
 
 def classify_suitability(scores: pd.Series, classes: int = CLASS_COUNT) -> tuple[pd.Series, dict]:
     assert classes == len(CLASS_LABELS), (
@@ -35,5 +41,25 @@ def classify_suitability(scores: pd.Series, classes: int = CLASS_COUNT) -> tuple
     report = {
         "breaks": [float(edge) for edge in classifier.bins],
         "class_counts": {label: int((labels == label).sum()) for label in CLASS_LABELS},
+    }
+    return labels, report
+
+
+def classify_traffic_light(scores: pd.Series) -> tuple[pd.Series, dict]:
+    values = scores.to_numpy(dtype=float)
+    classifier = mapclassify.FisherJenks(values, k=len(TRAFFIC_CLASS_LABELS))
+    labels = pd.Series(
+        [TRAFFIC_CLASS_LABELS[int(bin_index)] for bin_index in classifier.yb],
+        index=scores.index,
+        name=SUITABILITY_CLASS_COLUMN,
+    )
+    assert labels.nunique() == len(TRAFFIC_CLASS_LABELS), (
+        f"Jenks natural breaks produced {labels.nunique()} distinct classes, "
+        f"expected {len(TRAFFIC_CLASS_LABELS)}"
+    )
+    report = {
+        "breaks": [float(edge) for edge in classifier.bins],
+        "class_counts": {label: int((labels == label).sum()) for label in TRAFFIC_CLASS_LABELS},
+        "class_labels": list(TRAFFIC_CLASS_LABELS),
     }
     return labels, report

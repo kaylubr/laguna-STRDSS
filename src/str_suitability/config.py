@@ -35,6 +35,26 @@ EXPECTED_MUNICIPALITY_COUNT = 30
 RURAL_AREA_SHARE_THRESHOLD = 0.5
 RURAL_PROCESSED_DIR = PROCESSED_DIR / "rural"
 NEARBY_TRAINING_THRESHOLD_KM = 5.0
+NEIGHBORHOOD_RADIUS_KM = NEARBY_TRAINING_THRESHOLD_KM
+LISTED_TOURIST_PLACES_PATH = DATA_DIR / "poi_laguna.json"
+
+TOURIST_ACCESS_BLOC = 1.0 / 3.0
+NEARBY_MARKET_BLOC = 1.0 / 3.0
+LOCAL_COMPETITION_BLOC = 1.0 / 3.0
+
+SITE_SCORE_DIRECTIONS = {
+    "distance_to_listed_tourist_place": "negative",
+    "nearby_mean_revenue": "positive",
+    "nearby_mean_occupancy": "positive",
+    "competition_listing_count": "negative",
+}
+
+SITE_SCORE_WEIGHTS = {
+    "distance_to_listed_tourist_place": TOURIST_ACCESS_BLOC,
+    "nearby_mean_revenue": NEARBY_MARKET_BLOC / 2.0,
+    "nearby_mean_occupancy": NEARBY_MARKET_BLOC / 2.0,
+    "competition_listing_count": LOCAL_COMPETITION_BLOC,
+}
 
 TEST_SIZE = 0.2
 CV_FOLDS = 5

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from shapely.geometry import box
 
-from str_suitability.config import PROJECTED_CRS
+from str_suitability.config import GEOGRAPHIC_CRS, PROJECTED_CRS
 from str_suitability.rural.classify import (
     CELL_CLASS_COLUMN,
     CELL_CLASSIFICATION_COLUMNS,
@@ -13,6 +13,7 @@ from str_suitability.rural.classify import (
     URBAN_CELL,
     attach_listing_classification,
     classify_grid_cells,
+    classify_listings_by_barangay,
     load_listing_classification,
     rural_population_levels,
     select_cells_with_class,
@@ -247,3 +248,36 @@ def test_population_levels_drop_rural_listings_without_a_cell():
     levels = rural_population_levels(targets, observations)
     assert levels["active_rural"]["listings"] == 2
     assert levels["fitted_rural"]["listings"] == 1
+
+
+def test_a_listing_takes_the_barangay_that_contains_it():
+    barangays = gpd.GeoDataFrame(
+        {
+            "psgc": ["0403401001", "0403401002"],
+            "adm4_name": ["Rural One", "Urban One"],
+            "adm3_name": ["Bay", "Bay"],
+            URBAN_RURAL_COLUMN: [RURAL, URBAN],
+            "geometry": [
+                box(121.20, 14.20, 121.22, 14.22),
+                box(121.30, 14.20, 121.32, 14.22),
+            ],
+        },
+        geometry="geometry",
+        crs=GEOGRAPHIC_CRS,
+    )
+    listings = pd.DataFrame(
+        {
+            "listing_id": ["inside_rural", "inside_urban", "outside"],
+            "longitude": [121.21, 121.31, 121.50],
+            "latitude": [14.21, 14.21, 14.21],
+        }
+    )
+
+    classified = classify_listings_by_barangay(listings, barangays)
+
+    by_id = classified.set_index("listing_id")
+    assert by_id.loc["inside_rural", URBAN_RURAL_COLUMN] == RURAL
+    assert by_id.loc["inside_rural", "match_status"] == "matched_rural"
+    assert by_id.loc["inside_urban", "match_status"] == "matched_urban"
+    assert by_id.loc["outside", "match_status"] == "unmatched"
+    assert pd.isna(by_id.loc["outside", URBAN_RURAL_COLUMN])

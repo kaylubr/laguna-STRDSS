@@ -19,7 +19,7 @@ POLYGON_LABEL_COLUMNS = (MUNICIPALITY_NAME_COLUMN, MUNICIPALITY_PSGC_COLUMN)
 
 
 def load_barangay_classification(path: Path) -> pd.DataFrame:
-    payload = json.loads(path.read_text())
+    payload = json.loads(path.read_text(encoding="utf-8"))
     records = payload["results"]
     frame = pd.DataFrame(
         {

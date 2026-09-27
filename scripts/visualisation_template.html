@@ -24,68 +24,85 @@
   .popup table { border-collapse:collapse; }
   .popup td { padding:1px 8px 1px 0; font-variant-numeric:tabular-nums; }
   .popup td:first-child { color:#555; }
+  #forest-modal { position:fixed; inset:0; background:rgba(20,20,20,.45); z-index:2000;
+                  display:none; align-items:center; justify-content:center; padding:24px; }
+  #forest-modal.open { display:flex; }
+  .modal { background:#fff; width:min(560px, 100%); max-height:88vh; overflow:auto;
+           border-radius:8px; padding:16px 18px 20px; box-shadow:0 8px 28px rgba(0,0,0,.35); }
+  .modal h2 { font-size:15px; margin:0 0 4px; }
+  .modal h3 { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#555; margin:14px 0 6px; }
+  .modal table { width:100%; border-collapse:collapse; }
+  .modal td { padding:3px 8px 3px 0; vertical-align:top; }
+  .modal td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  .flow { display:flex; gap:6px; align-items:stretch; margin:8px 0 4px; }
+  .flow div { flex:1; background:#f4f7fb; border:1px solid #d5deea; border-radius:4px; padding:6px; }
+  .bar { height:8px; background:#d6e2f0; border-radius:4px; overflow:hidden; margin-top:3px; }
+  .bar span { display:block; height:100%; background:#1d4e89; }
+  button.close { float:right; }
 </style>
 </head>
 <body>
 <div id="map"></div>
+<div id="forest-modal">
+  <div class="modal" id="forest-card"></div>
+</div>
 <script>
 const payload = __PAYLOAD__;
 
 const FIELD_KEYS = {
-  composite_suitability_score: 's', predicted_revenue: 'r', predicted_occupancy: 'o',
-  poi_density_total: 'p', distance_to_nearest_tourist_attraction: 'a',
-  distance_to_nearest_transportation_facility: 't', poi_count_total: 'n'
+  rural_composite_suitability_score: 'rs',
+  distance_to_listed_tourist_place: 'ta',
+  nearby_mean_revenue: 'mr',
+  nearby_mean_occupancy: 'mo',
+  competition_listing_count: 'cc',
+  rural_predicted_revenue: 'rr',
+  rural_predicted_occupancy: 'ro'
 };
 
 const map = L.map('map', { preferCanvas: true });
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+L.tileLayer(
+  'https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}?access_token=__MAPBOX_TOKEN__',
+  {
+    maxZoom: 22,
+    attribution: '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }
+).addTo(map);
 map.fitBounds(payload.bounds, { paddingTopLeft: [20, 20], paddingBottomRight: [340, 20] });
 
 const weights = Object.entries(payload.weights).sort((a, b) => b[1] - a[1])
   .map(([k, v]) => `<div class="row"><span>${k}</span><span class="num">${v.toFixed(4)}</span></div>`)
   .join('');
-const classLegend = payload.classes.map((label, i) =>
-  `<div class="row"><span class="swatch" style="background:${payload.classColors[i]}"></span>
-   <span>${label}</span><span class="num">${payload.cellCounts[i]}</span></div>`).join('');
-const categoryLegend = payload.categories.map((name, i) =>
-  `<div class="row"><span class="swatch" style="background:${payload.categoryColors[i]}"></span>
-   <span>${name}</span></div>`).join('');
-
-const outsideStart = payload.ruralClasses.length - 2;
-const ruralOutsideLegend = payload.ruralClasses.slice(outsideStart).map((label, offset) =>
-  `<div class="row"><span class="swatch" style="background:${payload.ruralClassColors[outsideStart + offset]}"></span>
-   <span>${label}</span>
-   <span class="num">${offset === 0 ? payload.urbanCells : payload.unclassifiedCells}</span></div>`).join('');
-const ruralLegend = `
-  <div class="row"><span>inside the rural analysis</span>
-    <span class="num">${payload.ruralCells}</span></div>${ruralOutsideLegend}`;
+const classCounts = payload.ruralClasses.map((_, index) =>
+  payload.cells.filter(cell => cell.rc === index).length);
+const ruralLegend = payload.ruralClasses.map((label, index) =>
+  `<div class="row"><span class="swatch" style="background:${payload.ruralClassColors[index]}"></span>
+   <span>${label}</span><span class="num">${classCounts[index]}</span></div>`).join('');
 
 const info = L.control({ position: 'topright' });
 info.onAdd = () => {
   const div = L.DomUtil.create('div', 'panel');
   div.innerHTML = `
-    <h1>Laguna STR suitability — scratch viewer</h1>
-    <div class="note">Values are <b>predicted STR performance potential</b>, not observed
-      performance. Only <b>${payload.cellsWithListings} of ${payload.totalCells}</b> cells contain an
-      active listing; the rest are model predictions for that location.</div>
-    <div class="note">The grid is <b>province-wide</b>. The rural analysis scores
-      <b>${payload.ruralCells}</b> cells; the other <b>${payload.outsideRuralCells}</b> are
-      <b>outside the rural analysis</b> and are masked grey — the colors underneath them come from
-      the province-wide model.</div>
-    <div class="muted">POIs: ${payload.poiContributing.toLocaleString()} inside a retained cell
-      (counted in density) · ${(payload.poiTotal - payload.poiContributing).toLocaleString()}
-      outside (not counted)</div>
+    <h1>Laguna rural site score</h1>
+    <div class="note">A rural cell scores <b>tourist access + nearby market − local competition</b>.
+      Tourist access is distance to <code>poi_laguna.json</code>. Nearby market is the mean
+      trailing-twelve-month revenue and occupancy of active listings within
+      <b>${payload.neighborhoodRadiusKm} km</b>. Competition is the count of those listings in the
+      cell and in that neighborhood; more listings lower the score. Google ratings are not used.</div>
+    <div class="note">Click any cell to see its score and how the random forest reads that place.
+      The forest explains predicted revenue and occupancy. It does not set the site score.
+      Low is red, Moderate is yellow, and High is green.</div>
+    <div class="note">The grid covers Laguna. The rural analysis scores
+      <b>${payload.ruralCells}</b> cells. The other <b>${payload.outsideRuralCells}</b> stay grey
+      and are outside the rural score.</div>
+    <div class="muted">${payload.listings.length.toLocaleString()} Airbnb listings ·
+      ${payload.places.length.toLocaleString()} places from poi_laguna.json</div>
     <h2>Shade cells by</h2>
-    <select id="field"><option value="class">Suitability class</option></select>
-    <div id="fieldnote" class="muted">five Jenks classes</div>
+    <select id="field">
+      <option value="rural" selected>Rural site class</option>
+    </select>
+    <div id="fieldnote" class="muted">click any cell for the forest</div>
     <h2>Rural analysis</h2>${ruralLegend}
-    <h2>Entropy weights</h2>${weights}
-    <h2>Suitability classes</h2>${classLegend}
-    <h2>POI categories</h2>${categoryLegend}
-    <div class="row"><span class="swatch hollow"></span>
-      <span>outside the grid — hollow</span></div>`;
+    <h2>Site weights</h2>${weights}`;
   L.DomEvent.disableClickPropagation(div);
   L.DomEvent.disableScrollPropagation(div);
   return div;
@@ -103,9 +120,14 @@ payload.numericFields.forEach(field => {
 const ranges = {};
 payload.numericFields.forEach(field => {
   const short = FIELD_KEYS[field.key];
-  const values = payload.cells.map(cell => cell[short]);
-  ranges[field.key] = [Math.min(...values), Math.max(...values)];
+  const values = payload.cells.map(cell => cell[short]).filter(value => value !== null && value !== undefined);
+  ranges[field.key] = values.length ? [Math.min(...values), Math.max(...values)] : [0, 1];
 });
+
+function formatValue(value) {
+  if (value === null || value === undefined) return '—';
+  return value.toLocaleString();
+}
 
 function ramp(t) {
   const stops = [[247,251,255],[198,219,239],[107,174,214],[33,113,181],[8,48,107]];
@@ -121,28 +143,81 @@ const RURAL_STATUS = {
   2: 'unclassified — outside the rural analysis'
 };
 
-function cellTable(cell) {
-  const rows = payload.numericFields.map(field =>
-    `<tr><td>${field.label}</td><td>${cell[FIELD_KEYS[field.key]].toLocaleString()}</td></tr>`
-  ).join('');
-  const ruralRows = `
-    <tr><td>Rural analysis</td><td>${RURAL_STATUS[cell.k]}</td></tr>
-    <tr><td>Rural suitability class</td>
-      <td><span class="swatch" style="display:inline-block;vertical-align:-2px;
-        background:${payload.ruralClassColors[cell.rc]}"></span>
-        ${payload.ruralClasses[cell.rc]}</td></tr>
-    <tr><td>Rural composite score</td>
-      <td>${cell.rs === null ? '—' : cell.rs.toLocaleString()}</td></tr>`;
-  return `<div class="popup"><b>${payload.classes[cell.c]}</b>
-    <div class="muted">${cell.m} · ${cell.id} · ${cell.l} active listing(s)</div>
-    <table>${rows}</table>
-    <table>${ruralRows}</table></div>`;
+function importanceLookup(rows) {
+  return Object.fromEntries(rows.map(row => [row.feature, row.importance]));
+}
+
+function openForestModal(cell) {
+  const revenueImportance = importanceLookup(payload.forest.revenueImportance);
+  const occupancyImportance = importanceLookup(payload.forest.occupancyImportance);
+  const ranked = payload.forest.features
+    .map((feature, index) => ({
+      label: feature.label,
+      value: cell.f ? cell.f[index] : null,
+      revenue: revenueImportance[feature.key] || 0,
+      occupancy: occupancyImportance[feature.key] || 0
+    }))
+    .sort((a, b) => Math.max(b.revenue, b.occupancy) - Math.max(a.revenue, a.occupancy))
+    .slice(0, 8);
+  const peak = Math.max(...ranked.map(row => Math.max(row.revenue, row.occupancy)), 0.000001);
+  const featureRows = ranked.map(row => `
+    <tr>
+      <td>${row.label}<div class="muted">${formatValue(row.value)}</div>
+        <div class="bar"><span style="width:${Math.max(0, row.revenue) / peak * 100}%"></span></div>
+      </td>
+      <td>revenue ${row.revenue.toFixed(3)}<br>occupancy ${row.occupancy.toFixed(3)}</td>
+    </tr>`).join('');
+  const outside = !cell.inr;
+  document.getElementById('forest-card').innerHTML = `
+    <button class="close" type="button" id="forest-close">Close</button>
+    <h2>${outside ? 'Outside the rural score' : payload.ruralClasses[cell.rc]}</h2>
+    <div class="muted">${cell.m || ''} · ${cell.id}</div>
+    ${outside ? '<p>This cell is outside the rural analysis. It has no Low, Moderate, or High class.</p>' : ''}
+    <h3>Site score ${formatValue(cell.rs)}</h3>
+    <table>
+      <tr><td>Tourist access<br><span class="muted">${cell.tn || '—'} · ${formatValue(cell.ta)} km</span></td>
+        <td>${formatValue(cell.tac)}</td></tr>
+      <tr><td>Nearby market<br><span class="muted">mean revenue ${formatValue(cell.mr)} · occupancy ${formatValue(cell.mo)} · ${formatValue(cell.ln)} listings within ${payload.neighborhoodRadiusKm} km</span></td>
+        <td>${formatValue(cell.nmc)}</td></tr>
+      <tr><td>Local competition<br><span class="muted">${formatValue(cell.lc)} in this cell, ${formatValue(cell.cc)} in the cell and neighborhood. More listings lower this term.</span></td>
+        <td>${formatValue(cell.lcc)}</td></tr>
+    </table>
+    <h3>How the random forest reads this cell</h3>
+    <div class="flow">
+      <div>Place attributes of this cell go in together.</div>
+      <div>Each tree votes a revenue and an occupancy from splits on those attributes.</div>
+      <div>The prediction is the average vote across the trees.</div>
+    </div>
+    <table>
+      <tr><td>Predicted annual revenue</td><td>${formatValue(cell.rr)}</td></tr>
+      <tr><td>Predicted occupancy</td><td>${formatValue(cell.ro)}</td></tr>
+    </table>
+    <p class="muted">These two numbers are what the rural forests expect of a listing at this location. They are not a forecast for a specific property, and they are not the site score. The bars below are permutation importance on the held-out rural listings: a longer bar means shuffling that attribute hurt the forest more.</p>
+    <table>${featureRows}</table>`;
+  document.getElementById('forest-modal').classList.add('open');
+  document.getElementById('forest-close').addEventListener('click', closeForestModal);
+}
+
+function closeForestModal() {
+  document.getElementById('forest-modal').classList.remove('open');
+}
+
+document.getElementById('forest-modal').addEventListener('click', event => {
+  if (event.target.id === 'forest-modal') closeForestModal();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') closeForestModal();
+});
+
+function openCell(cell, event) {
+  L.DomEvent.stopPropagation(event);
+  openForestModal(cell);
 }
 
 const cellLayer = L.layerGroup().addTo(map);
 const cellShapes = payload.cells.map(cell => cell.g.map(part => {
   const shape = L.polygon(part, { color: '#444', weight: 0.4, fillOpacity: 0.75 });
-  shape.bindPopup(() => cellTable(cell));
+  shape.on('click', event => openCell(cell, event));
   shape.addTo(cellLayer);
   return shape;
 }));
@@ -152,42 +227,46 @@ payload.cells.forEach(cell => {
   if (cell.k === 0) return;
   cell.g.forEach(part => L.polygon(part, {
     color: '#555', weight: 0.6, dashArray: '3,3',
-    fillColor: payload.ruralClassColors[cell.rc], fillOpacity: 0.8
-  }).bindPopup(() => cellTable(cell)).addTo(maskLayer));
+    fillColor: '#bdbdbd', fillOpacity: 0.55
+  }).on('click', event => openCell(cell, event)).addTo(maskLayer));
 });
 maskLayer.eachLayer(shape => shape.bringToFront());
 
-const poiLayer = L.layerGroup().addTo(map);
-payload.pois.forEach(record => {
-  const [lon, lat, category, name, attraction, transport, contributing, osmType, osmId] = record;
-  const url = `https://www.openstreetmap.org/${osmType}/${osmId}`;
-  const flags = [attraction ? 'tourist attraction' : '', transport ? 'transport facility' : '']
-    .filter(Boolean).join(' · ');
+const listingLayer = L.layerGroup().addTo(map);
+payload.listings.forEach(record => {
+  const [lon, lat, listingId] = record;
   L.circleMarker([lat, lon], {
-    radius: contributing ? 3 : 2.5,
-    color: contributing ? payload.categoryColors[category] : '#555',
-    weight: 1,
-    fillColor: payload.categoryColors[category],
-    fillOpacity: contributing ? 0.85 : 0
-  }).bindTooltip(() => `<b>${name || '(unnamed)'}</b><br>${payload.categories[category]}${
-    flags ? ' · ' + flags : ''}<br>${lat.toFixed(5)}, ${lon.toFixed(5)}<br>${
-    contributing ? 'counted in its cell’s POI density' : 'outside the grid — not counted'}<br>
-    <a href="${url}" target="_blank" rel="noopener">${osmType}/${osmId} on OSM</a>`
-  ).addTo(poiLayer);
+    radius: 3, color: '#1d4e89', weight: 1, fillColor: '#4c78a8', fillOpacity: 0.9
+  }).bindTooltip(() => `<b>Airbnb listing</b><br>${listingId}<br>${lat.toFixed(5)}, ${lon.toFixed(5)}`)
+    .addTo(listingLayer);
+});
+
+const placeLayer = L.layerGroup().addTo(map);
+payload.places.forEach(record => {
+  const [lon, lat, name] = record;
+  L.circleMarker([lat, lon], {
+    radius: 4, color: '#7a1f1f', weight: 1, fillColor: '#d62728', fillOpacity: 0.9
+  }).bindTooltip(() => `<b>${name}</b><br>poi_laguna.json<br>${lat.toFixed(5)}, ${lon.toFixed(5)}`)
+    .addTo(placeLayer);
 });
 
 function styleCells(key) {
-  if (key === 'class') {
-    cellShapes.forEach((shapes, i) =>
-      shapes.forEach(shape =>
-        shape.setStyle({ fillColor: payload.classColors[payload.cells[i].c], fillOpacity: 0.75 })));
+  if (key === 'rural') {
+    cellShapes.forEach((shapes, i) => {
+      const cell = payload.cells[i];
+      const color = cell.k === 0 ? payload.ruralClassColors[cell.rc] : '#d9d9d9';
+      shapes.forEach(shape => shape.setStyle({
+        fillColor: color, fillOpacity: cell.k === 0 ? 0.8 : 0.35
+      }));
+    });
     return;
   }
   const short = FIELD_KEYS[key];
   const [lo, hi] = ranges[key];
   const span = (hi - lo) || 1;
   cellShapes.forEach((shapes, i) => {
-    const color = ramp((payload.cells[i][short] - lo) / span);
+    const value = payload.cells[i][short];
+    const color = value === null || value === undefined ? '#d9d9d9' : ramp((value - lo) / span);
     shapes.forEach(shape => shape.setStyle({ fillColor: color, fillOpacity: 0.85 }));
   });
 }
@@ -195,18 +274,22 @@ function styleCells(key) {
 select.addEventListener('change', event => {
   styleCells(event.target.value);
   const field = payload.numericFields.find(f => f.key === event.target.value);
-  document.getElementById('fieldnote').textContent = field
-    ? (field.key.startsWith('distance')
-        ? `lower is better (negative indicator) · range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`
-        : `range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`)
-    : 'five Jenks classes';
+  const note = document.getElementById('fieldnote');
+  if (event.target.value === 'rural') {
+    note.textContent = 'Low is red, Moderate is yellow, High is green';
+  } else if (field && (field.key.startsWith('distance') || field.key === 'competition_listing_count')) {
+    note.textContent = `lower is better · range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`;
+  } else if (field) {
+    note.textContent = `range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`;
+  }
 });
 
-styleCells('class');
+styleCells('rural');
 L.control.layers(null, {
-  'Grid cells (province-wide)': cellLayer,
+  'Grid cells': cellLayer,
   'Outside rural analysis': maskLayer,
-  'POIs': poiLayer
+  'Airbnb listings': listingLayer,
+  'Places from poi_laguna.json': placeLayer
 }, { collapsed: false }).addTo(map);
 </script>
 </body>

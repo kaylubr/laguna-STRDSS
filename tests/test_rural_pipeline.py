@@ -175,7 +175,13 @@ def test_pipeline_predicts_the_rural_domain_only(configured):
 
 def test_pipeline_weights_sum_to_one(configured):
     report, _, _ = configured
-    assert sum(report["weights"].values()) == pytest.approx(1.0)
+    weights = report["weights"]
+    assert sum(weights.values()) == pytest.approx(1.0)
+    assert weights["distance_to_listed_tourist_place"] == pytest.approx(1.0 / 3.0)
+    assert weights["nearby_mean_revenue"] == pytest.approx(1.0 / 6.0)
+    assert weights["nearby_mean_occupancy"] == pytest.approx(1.0 / 6.0)
+    assert weights["competition_listing_count"] == pytest.approx(1.0 / 3.0)
+    assert set(weights).isdisjoint(config.POI_BLOC_INDICATORS)
 
 
 def test_pipeline_writes_every_rural_output(configured):

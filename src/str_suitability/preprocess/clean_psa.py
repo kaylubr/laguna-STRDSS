@@ -16,7 +16,7 @@ def normalize_municipality_name(name: str) -> str:
 
 
 def load_psa_population(path: Path) -> pd.DataFrame:
-    payload = json.loads(path.read_text())
+    payload = json.loads(path.read_text(encoding="utf-8"))
     frame = pd.DataFrame(payload["municipalities"])
     frame["municipality"] = frame["name"]
     frame["normalized_name"] = frame["municipality"].map(normalize_municipality_name)
@@ -25,7 +25,7 @@ def load_psa_population(path: Path) -> pd.DataFrame:
 
 
 def load_psa_metadata(path: Path) -> dict:
-    payload = json.loads(path.read_text())
+    payload = json.loads(path.read_text(encoding="utf-8"))
     return {
         "province": payload["province"],
         "year": payload["year"],

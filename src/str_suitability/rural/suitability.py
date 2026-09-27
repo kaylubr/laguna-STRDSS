@@ -10,7 +10,11 @@ from str_suitability.rural.classify import (
     UNCLASSIFIED_CELL,
     URBAN_CELL,
 )
-from str_suitability.suitability.classify import CLASS_LABELS, SUITABILITY_CLASS_COLUMN
+from str_suitability.suitability.classify import (
+    CLASS_LABELS,
+    SUITABILITY_CLASS_COLUMN,
+    TRAFFIC_CLASS_LABELS,
+)
 from str_suitability.suitability.composite_score import COMPOSITE_SCORE_COLUMN
 from str_suitability.suitability.stage import compute_suitability
 
@@ -140,7 +144,7 @@ def assemble_rural_output(
         "every cell must be either rural-classed or explicitly outside the rural analysis"
     )
     assert output[RURAL_CLASS_COLUMN].isin(
-        [*RURAL_CLASS_LABELS, *OUTSIDE_RURAL_ANALYSIS_LABELS.values()]
+        [*RURAL_CLASS_LABELS, *TRAFFIC_CLASS_LABELS, *OUTSIDE_RURAL_ANALYSIS_LABELS.values()]
     ).all(), "a cell carries an unrecognised rural suitability label"
     assert output[CELL_ID_COLUMN].tolist() == grid[CELL_ID_COLUMN].tolist(), (
         "assembly changed the cell identifiers or their order"
@@ -154,7 +158,11 @@ def assemble_rural_output(
         "cells_unclassified": int((output[CELL_CLASS_COLUMN] == UNCLASSIFIED_CELL).sum()),
         "class_counts": {
             label: int((output[RURAL_CLASS_COLUMN] == label).sum())
-            for label in [*RURAL_CLASS_LABELS, *OUTSIDE_RURAL_ANALYSIS_LABELS.values()]
+            for label in [
+                *TRAFFIC_CLASS_LABELS,
+                *RURAL_CLASS_LABELS,
+                *OUTSIDE_RURAL_ANALYSIS_LABELS.values(),
+            ]
         },
     }
     return gpd.GeoDataFrame(output, geometry="geometry", crs=grid.crs), report

@@ -22,6 +22,11 @@ from str_suitability.modeling.evaluate import describe_target, evaluate_on_test,
 from str_suitability.modeling.importance import permutation_importance_table
 from str_suitability.modeling.train import train_model
 from str_suitability.preprocess.clean_psa import attach_psgc_codes, load_psa_population
+from str_suitability.rural.site_score import (
+    FOREST_FEATURE_COLUMNS,
+    attach_forest_features,
+    load_listed_tourist_places,
+)
 from str_suitability.spatial.grid import assert_one_row_per_cell, build_grid, derive_land_boundary
 from str_suitability.spatial.join import (
     assign_listings_to_cells,
@@ -41,17 +46,7 @@ POI_DENSITY_COLUMNS = [
     "poi_density_total",
 ]
 
-FEATURE_COLUMNS = [
-    *POI_DENSITY_COLUMNS,
-    "tourist_attraction_count",
-    "tourist_attraction_density",
-    "distance_to_nearest_transportation_facility",
-    "distance_to_nearest_tourist_attraction",
-    LAKE_DISTANCE_COLUMN,
-    OTHER_WATER_DISTANCE_COLUMN,
-    POBLACION_DISTANCE_COLUMN,
-    "population_density_per_km2",
-]
+FEATURE_COLUMNS = list(FOREST_FEATURE_COLUMNS)
 
 
 def load_water(feature_dir: Path) -> gpd.GeoDataFrame:
@@ -190,6 +185,12 @@ def run_pipeline() -> dict:
     barangays = gpd.read_file(config.BARANGAY_POLYGONS_PATH)
     features, feature_report = build_feature_frame(
         grid, municipalities, population, pois, water, barangays
+    )
+    active_listings = targets.loc[targets["in_training_population"]]
+    features = attach_forest_features(
+        features,
+        active_listings,
+        load_listed_tourist_places(config.LISTED_TOURIST_PLACES_PATH),
     )
     merged, join_report = build_training_frame(targets, features)
 

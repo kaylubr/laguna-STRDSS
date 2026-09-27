@@ -158,6 +158,7 @@ activemq-data/
 # Environments
 .env
 .envrc
+.mapbox_token
 .venv
 env/
 venv/

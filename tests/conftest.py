@@ -10,6 +10,12 @@ from str_suitability.rural.psa import RURAL, URBAN, URBAN_RURAL_COLUMN
 
 CELL_SIZE_M = 1000
 FEATURE_OFFSET = 10.0
+LEGACY_GRID_COLUMNS = (
+    "poi_density_total",
+    "distance_to_nearest_tourist_attraction",
+    "distance_to_nearest_transportation_facility",
+    "population_density_per_km2",
+)
 
 
 def make_cells(count: int, cell_size_m: int = CELL_SIZE_M) -> gpd.GeoDataFrame:
@@ -32,7 +38,7 @@ def add_grid_features(frame: gpd.GeoDataFrame, offset: float = 0.0) -> gpd.GeoDa
     geographic = centroids.to_crs(GEOGRAPHIC_CRS)
     frame = frame.assign(longitude=geographic.x.to_numpy(), latitude=geographic.y.to_numpy())
     step = np.arange(len(frame), dtype=float)
-    for position, name in enumerate(FEATURE_COLUMNS):
+    for position, name in enumerate([*FEATURE_COLUMNS, *LEGACY_GRID_COLUMNS]):
         frame[name] = FEATURE_OFFSET + offset + step * (position + 1.0) / len(FEATURE_COLUMNS)
     return gpd.GeoDataFrame(frame, geometry="geometry", crs=PROJECTED_CRS)
 

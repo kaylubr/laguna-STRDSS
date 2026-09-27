@@ -18,7 +18,7 @@ LISTING_FIELDS = (
 
 
 def load_airroi_listings(path: Path) -> pd.DataFrame:
-    payload = json.loads(path.read_text())
+    payload = json.loads(path.read_text(encoding="utf-8"))
     listings = payload["listings"]
     frame = pd.DataFrame(listings)
     frame["listing_id"] = frame["listing_id"].astype(str)
@@ -26,14 +26,14 @@ def load_airroi_listings(path: Path) -> pd.DataFrame:
 
 
 def load_listing_metadata(path: Path) -> dict:
-    return json.loads(path.read_text())["metadata"]
+    return json.loads(path.read_text(encoding="utf-8"))["metadata"]
 
 
 def load_history_panel(history_dir: Path, window: tuple[str, str]) -> pd.DataFrame:
     start, end = window
     records = []
     for path in sorted(history_dir.glob("*.json")):
-        payload = json.loads(path.read_text())
+        payload = json.loads(path.read_text(encoding="utf-8"))
         listing_id = str(payload["listing_id"])
         for month in payload.get("response_data", {}).get("results", []):
             if start <= month["date"] <= end:
@@ -53,7 +53,7 @@ def load_history_panel(history_dir: Path, window: tuple[str, str]) -> pd.DataFra
 def load_full_history(history_dir: Path) -> pd.DataFrame:
     records = []
     for path in sorted(history_dir.glob("*.json")):
-        payload = json.loads(path.read_text())
+        payload = json.loads(path.read_text(encoding="utf-8"))
         listing_id = str(payload["listing_id"])
         for month in payload.get("response_data", {}).get("results", []):
             records.append(

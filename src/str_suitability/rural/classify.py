@@ -2,8 +2,9 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
-from str_suitability.config import RURAL_AREA_SHARE_THRESHOLD
+from str_suitability.config import GEOGRAPHIC_CRS, RURAL_AREA_SHARE_THRESHOLD
 from str_suitability.rural.psa import (
+    MUNICIPALITY_NAME_COLUMN,
     POLYGON_NAME_COLUMN,
     PSGC_COLUMN,
     RURAL,
@@ -169,6 +170,48 @@ def _cell_classification_report(
         ),
         "area_share_threshold": float(threshold),
     }
+
+
+def classify_listings_by_barangay(
+    listings: pd.DataFrame, barangays: gpd.GeoDataFrame
+) -> pd.DataFrame:
+    assert LISTING_ID_COLUMN in listings.columns, "listings have no listing_id"
+    assert {"longitude", "latitude"} <= set(listings.columns), "listings have no coordinates"
+    points = gpd.GeoDataFrame(
+        {LISTING_ID_COLUMN: listings[LISTING_ID_COLUMN].astype(str).to_numpy()},
+        geometry=gpd.points_from_xy(listings["longitude"], listings["latitude"]),
+        crs=GEOGRAPHIC_CRS,
+    )
+    joined = gpd.sjoin(
+        points,
+        barangays.to_crs(GEOGRAPHIC_CRS),
+        how="left",
+        predicate="within",
+    )
+    joined = joined.drop_duplicates(LISTING_ID_COLUMN, keep="first").set_index(LISTING_ID_COLUMN)
+    joined = joined.reindex(points[LISTING_ID_COLUMN])
+
+    urban_rural = joined[URBAN_RURAL_COLUMN]
+    status = np.where(
+        urban_rural.eq(RURAL),
+        "matched_rural",
+        np.where(urban_rural.eq(URBAN), "matched_urban", "unmatched"),
+    )
+    classified = pd.DataFrame(
+        {
+            LISTING_ID_COLUMN: points[LISTING_ID_COLUMN].to_numpy(),
+            "matched_barangay_psgc": joined[PSGC_COLUMN].to_numpy(),
+            "matched_barangay_name": joined[POLYGON_NAME_COLUMN].to_numpy(),
+            "matched_municipality": joined[MUNICIPALITY_NAME_COLUMN].to_numpy()
+            if MUNICIPALITY_NAME_COLUMN in joined.columns
+            else None,
+            URBAN_RURAL_COLUMN: urban_rural.to_numpy(),
+            "match_status": status,
+        }
+    )
+    assert classified[LISTING_ID_COLUMN].is_unique, "listing classification repeated a listing"
+    assert len(classified) == len(listings), "listing classification dropped a listing"
+    return classified
 
 
 def load_listing_classification(path) -> tuple[pd.DataFrame, dict[str, object]]:
