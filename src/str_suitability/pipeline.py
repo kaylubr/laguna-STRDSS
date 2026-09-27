@@ -9,6 +9,13 @@ from str_suitability.features.accessibility import (
     add_accessibility_distances,
     add_tourism_features,
 )
+from str_suitability.features.context import (
+    LAKE_DISTANCE_COLUMN,
+    OTHER_WATER_DISTANCE_COLUMN,
+    POBLACION_DISTANCE_COLUMN,
+    add_poblacion_distance,
+    add_water_features,
+)
 from str_suitability.features.poi import add_poi_density
 from str_suitability.ingest.load_osm import load_boundaries
 from str_suitability.modeling.evaluate import describe_target, evaluate_on_test, evaluate_on_train
@@ -40,6 +47,9 @@ FEATURE_COLUMNS = [
     "tourist_attraction_density",
     "distance_to_nearest_transportation_facility",
     "distance_to_nearest_tourist_attraction",
+    LAKE_DISTANCE_COLUMN,
+    OTHER_WATER_DISTANCE_COLUMN,
+    POBLACION_DISTANCE_COLUMN,
     "population_density_per_km2",
 ]
 
@@ -68,6 +78,8 @@ def build_feature_frame(
     municipalities: gpd.GeoDataFrame,
     population: pd.DataFrame,
     pois: gpd.GeoDataFrame,
+    water: gpd.GeoDataFrame,
+    barangays: gpd.GeoDataFrame,
 ) -> tuple[gpd.GeoDataFrame, dict]:
     assert_one_row_per_cell(grid)
 
@@ -88,12 +100,17 @@ def build_feature_frame(
     assert_one_row_per_cell(grid)
     grid = add_tourism_features(grid, attractions)
     assert_one_row_per_cell(grid)
+    grid = add_water_features(grid, water)
+    assert_one_row_per_cell(grid)
+    grid, poblacion_report = add_poblacion_distance(grid, barangays)
+    assert_one_row_per_cell(grid)
 
     report = {
         **demographic_report,
         "municipalities_with_demographics": int(municipality_table["population"].notna().sum()),
         "transport_facilities": int(len(transport_facilities)),
         "tourist_attractions": int(len(attractions)),
+        "poblacion": poblacion_report,
         "cells_missing_population": int(grid["population_density_per_km2"].isna().sum()),
         "cells_missing_attraction_distance": int(
             grid["distance_to_nearest_tourist_attraction"].isna().sum()
@@ -101,6 +118,10 @@ def build_feature_frame(
         "cells_missing_transport_distance": int(
             grid["distance_to_nearest_transportation_facility"].isna().sum()
         ),
+        "cells_missing_water_distance": int(
+            grid[[LAKE_DISTANCE_COLUMN, OTHER_WATER_DISTANCE_COLUMN]].isna().any(axis=1).sum()
+        ),
+        "cells_missing_poblacion_distance": int(grid[POBLACION_DISTANCE_COLUMN].isna().sum()),
     }
     return grid, report
 
@@ -130,17 +151,28 @@ def build_training_frame(
 def run_model(merged: pd.DataFrame, target_column: str) -> dict:
     features = merged[FEATURE_COLUMNS]
     target = merged[target_column]
-    result = train_model(features, target)
-    model = result["model"]
+    groups = merged["cell_id"]
+
+    primary = train_model(features, target, groups=groups)
+    comparison = train_model(features, target)
+    model = primary["model"]
+    test_metrics = evaluate_on_test(model, primary["features_test"], primary["target_test"])
+    random_metrics = evaluate_on_test(
+        comparison["model"], comparison["features_test"], comparison["target_test"]
+    )
+
     return {
         "target": target_column,
-        "best_params": result["best_params"],
-        "best_cv_rmse": result["best_cv_rmse"],
-        "test_metrics": evaluate_on_test(model, result["features_test"], result["target_test"]),
-        "train_metrics": evaluate_on_train(model, result["features_train"], result["target_train"]),
+        "cv_scheme": primary["scheme"],
+        "best_params": primary["best_params"],
+        "best_cv_rmse": primary["best_cv_rmse"],
+        "test_metrics": test_metrics,
+        "test_metrics_random_split": random_metrics,
+        "test_r2_change_grouped_minus_random": float(test_metrics["r2"] - random_metrics["r2"]),
+        "train_metrics": evaluate_on_train(model, primary["features_train"], primary["target_train"]),
         "target_distribution": describe_target(target),
         "importance": permutation_importance_table(
-            model, result["features_test"], result["target_test"]
+            model, primary["features_test"], primary["target_test"]
         ).to_dict(orient="records"),
         "model": model,
     }
@@ -154,7 +186,11 @@ def run_pipeline() -> dict:
 
     grid, _ = build_grid_frame()
     pois = load_pois(FEATURE_DIR)
-    features, feature_report = build_feature_frame(grid, municipalities, population, pois)
+    water = load_water(FEATURE_DIR)
+    barangays = gpd.read_file(config.BARANGAY_POLYGONS_PATH)
+    features, feature_report = build_feature_frame(
+        grid, municipalities, population, pois, water, barangays
+    )
     merged, join_report = build_training_frame(targets, features)
 
     revenue = run_model(merged, config.REVENUE_TARGET)
