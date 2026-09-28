@@ -1,6 +1,6 @@
 if __name__ == "__main__":
     print(
-        "The rural site score is the primary result. "
-        "OpenStreetMap place densities are not weighted. "
+        "The map class is the random forest's predicted Airbnb performance class "
+        "(Low, Moderate, or High). Entropy weights are not used. "
         "Run scripts/run_rural.py, then scripts/build_visualisation.py."
     )

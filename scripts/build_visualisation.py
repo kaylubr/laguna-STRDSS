@@ -7,23 +7,21 @@ import geopandas as gpd
 import pandas as pd
 
 from str_suitability import config
-from str_suitability.pipeline import FEATURE_COLUMNS
-from str_suitability.rural.classify import RURAL_CELL, UNCLASSIFIED_CELL, URBAN_CELL
-from str_suitability.rural.site_score import (
-    COMPETITION_COLUMN,
-    COMPETITION_CONTRIBUTION,
+from str_suitability.modeling.location_classifier import (
+    CLASSIFIER_FEATURES,
+    CLASS_COLUMN,
     DISTANCE_COLUMN,
-    LISTINGS_IN_CELL_COLUMN,
-    LISTINGS_NEARBY_COLUMN,
-    MARKET_CONTRIBUTION,
+    HIGH_PROBABILITY,
+    LISTED_PLACES_WITHIN_RADIUS,
+    LOW_PROBABILITY,
+    MODERATE_PROBABILITY,
     NEAREST_PLACE_COLUMN,
-    NEARBY_OCCUPANCY_COLUMN,
-    NEARBY_REVENUE_COLUMN,
-    TOURIST_ACCESS_CONTRIBUTION,
-    load_listed_tourist_places,
+    SURROUNDING_LISTINGS,
+    SURROUNDING_OCCUPANCY,
+    SURROUNDING_REVENUE,
 )
-from str_suitability.rural.suitability import OUTSIDE_RURAL_ANALYSIS_LABELS
-from str_suitability.suitability.classify import TRAFFIC_CLASS_LABELS
+from str_suitability.rural.classify import RURAL_CELL, UNCLASSIFIED_CELL, URBAN_CELL
+from str_suitability.rural.site_score import load_listed_tourist_places
 
 OUTPUT_DIR = config.PROCESSED_DIR / "frontend"
 GRID_PATH = config.PROCESSED_DIR / "grid_features.parquet"
@@ -31,49 +29,44 @@ RURAL_GRID_PATH = config.RURAL_PROCESSED_DIR / "grid_suitability.parquet"
 TARGETS_PATH = config.INTERIM_DIR / "airroi_targets.parquet"
 
 CELL_CLASS_KEYS = {RURAL_CELL: 0, URBAN_CELL: 1, UNCLASSIFIED_CELL: 2}
-RURAL_OUTSIDE_LABELS = (
-    OUTSIDE_RURAL_ANALYSIS_LABELS[URBAN_CELL],
-    OUTSIDE_RURAL_ANALYSIS_LABELS[UNCLASSIFIED_CELL],
-)
 
-RURAL_COLUMNS = (
+MAP_COLUMNS = (
     "cell_id",
     "cell_class",
     "in_rural_analysis",
-    "rural_composite_suitability_score",
-    "rural_suitability_class",
+    CLASS_COLUMN,
+    LOW_PROBABILITY,
+    MODERATE_PROBABILITY,
+    HIGH_PROBABILITY,
     DISTANCE_COLUMN,
     NEAREST_PLACE_COLUMN,
-    NEARBY_REVENUE_COLUMN,
-    NEARBY_OCCUPANCY_COLUMN,
-    LISTINGS_IN_CELL_COLUMN,
-    LISTINGS_NEARBY_COLUMN,
-    COMPETITION_COLUMN,
-    TOURIST_ACCESS_CONTRIBUTION,
-    MARKET_CONTRIBUTION,
-    COMPETITION_CONTRIBUTION,
-    "rural_predicted_revenue",
-    "rural_predicted_occupancy",
+    SURROUNDING_REVENUE,
+    SURROUNDING_OCCUPANCY,
+    SURROUNDING_LISTINGS,
+    LISTED_PLACES_WITHIN_RADIUS,
 )
 
 FEATURE_LABELS = {
-    "distance_to_listed_tourist_place": "Distance to nearest place in poi_laguna.json",
-    "listed_places_within_radius": "Listed tourist places within 5 km",
-    "active_listings_within_radius": "Active Airbnb listings within 5 km",
+    SURROUNDING_REVENUE: "Surrounding mean revenue, excluding this cell",
+    SURROUNDING_OCCUPANCY: "Surrounding mean occupancy, excluding this cell",
+    SURROUNDING_LISTINGS: "Active listings within 5 km outside this cell",
+    LISTED_PLACES_WITHIN_RADIUS: "Listed landscape places within 5 km",
+    DISTANCE_COLUMN: "Distance to nearest listed landscape place",
 }
 
-RURAL_CLASSES = (*TRAFFIC_CLASS_LABELS, *RURAL_OUTSIDE_LABELS)
-RURAL_CLASS_COLORS = ("#d73027", "#fee08b", "#1a9850", "#7f7f7f", "#bdbdbd")
-RURAL_CLASS_INDEX = {label: index for index, label in enumerate(RURAL_CLASSES)}
+SUITABILITY_CLASSES = config.PERFORMANCE_CLASS_LABELS
+SUITABILITY_CLASS_COLORS = ("#d73027", "#fee08b", "#1a9850")
+SUITABILITY_CLASS_INDEX = {label: index for index, label in enumerate(SUITABILITY_CLASSES)}
 
 NUMERIC_FIELDS = (
-    ("rural_composite_suitability_score", "Rural site score"),
-    ("distance_to_listed_tourist_place", "Distance to listed tourist place"),
-    ("nearby_mean_revenue", "Nearby mean revenue"),
-    ("nearby_mean_occupancy", "Nearby mean occupancy"),
-    ("competition_listing_count", "Listings in the cell and neighborhood"),
-    ("rural_predicted_revenue", "Rural-model predicted revenue"),
-    ("rural_predicted_occupancy", "Rural-model predicted occupancy"),
+    (HIGH_PROBABILITY, "P(High performance)"),
+    (MODERATE_PROBABILITY, "P(Moderate performance)"),
+    (LOW_PROBABILITY, "P(Low performance)"),
+    (SURROUNDING_REVENUE, "Surrounding mean revenue"),
+    (SURROUNDING_OCCUPANCY, "Surrounding mean occupancy"),
+    (SURROUNDING_LISTINGS, "Surrounding listing count"),
+    (DISTANCE_COLUMN, "Distance to listed tourist place"),
+    (LISTED_PLACES_WITHIN_RADIUS, "Listed places within 5 km"),
 )
 
 
@@ -83,20 +76,24 @@ def sha256(path: Path) -> str:
 
 def attach_rural_classification(cells: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     rural = gpd.read_parquet(RURAL_GRID_PATH)
-    missing = [column for column in RURAL_COLUMNS if column not in rural.columns]
+    missing = [column for column in MAP_COLUMNS if column not in rural.columns]
     assert not missing, (
-        "the rural grid is missing site-score columns "
-        f"{missing}; re-run the rural pipeline before building the viewer"
+        "the suitability grid is missing random-forest columns "
+        f"{missing}; re-run scripts/run_rural.py before building the viewer"
     )
-    rural = rural[list(RURAL_COLUMNS)]
+    rural = rural[list(MAP_COLUMNS)]
+    overlap = [column for column in rural.columns if column != "cell_id" and column in cells.columns]
     cell_count = len(cells)
-    merged = cells.merge(rural, on="cell_id", how="left", validate="one_to_one")
-    assert len(merged) == cell_count, "the rural grid changed the cell count"
+    merged = cells.drop(columns=overlap).merge(rural, on="cell_id", how="left", validate="one_to_one")
+    assert len(merged) == cell_count, "the suitability grid changed the cell count"
     assert set(merged["cell_class"]) == set(CELL_CLASS_KEYS), (
         "a grid cell carries an unknown rural cell class"
     )
-    assert merged["rural_suitability_class"].notna().all(), (
-        "a grid cell carries no rural suitability label"
+    assert merged[CLASS_COLUMN].isin(SUITABILITY_CLASSES).all(), (
+        "a grid cell carries no random-forest suitability class"
+    )
+    assert merged[list((LOW_PROBABILITY, MODERATE_PROBABILITY, HIGH_PROBABILITY))].notna().all().all(), (
+        "a grid cell is missing a class probability"
     )
     return gpd.GeoDataFrame(merged, geometry="geometry", crs=cells.crs)
 
@@ -118,29 +115,22 @@ def _optional_number(value, digits: int):
     return round(float(value), digits)
 
 
-def _feature_row(row) -> list[float] | None:
-    if any(pd.isna(getattr(row, column)) for column in FEATURE_COLUMNS):
-        return None
-    return [round(float(getattr(row, column)), 4) for column in FEATURE_COLUMNS]
+def _feature_row(row) -> list[float | None]:
+    values = []
+    for column in CLASSIFIER_FEATURES:
+        measurement = getattr(row, column)
+        values.append(None if pd.isna(measurement) else round(float(measurement), 4))
+    return values
 
 
-def _importance_rows(summary: dict, model_name: str) -> list[dict]:
+def _importance_rows(summary: dict) -> list[dict]:
     return [
         {
             "feature": row["feature"],
             "importance": round(float(row["importance_mean"]), 6),
         }
-        for row in summary["models"][model_name]["importance"]
+        for row in summary["models"]["location_success"]["importance"]
     ]
-
-
-def _with_features(cells: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    missing = [column for column in FEATURE_COLUMNS if column not in cells.columns]
-    if not missing:
-        return cells
-    features = pd.read_parquet(config.PROCESSED_DIR / "grid_features.parquet")
-    merged = cells.merge(features[["cell_id", *missing]], on="cell_id", how="left", validate="one_to_one")
-    return gpd.GeoDataFrame(merged, geometry="geometry", crs=cells.crs)
 
 
 def _listing_dots() -> list[list]:
@@ -169,17 +159,16 @@ def _place_dots() -> list[list]:
 
 
 def build_payload() -> tuple[dict, dict]:
-    cells = _with_features(
-        attach_rural_classification(gpd.read_parquet(GRID_PATH).to_crs(config.GEOGRAPHIC_CRS))
-    )
+    cells = attach_rural_classification(gpd.read_parquet(GRID_PATH).to_crs(config.GEOGRAPHIC_CRS))
     places = _place_dots()
     listings = _listing_dots()
-    rural_summary = json.loads(
+    suitability_summary = json.loads(
         (config.RURAL_PROCESSED_DIR / "suitability_summary.json").read_text(encoding="utf-8")
     )
-    rural_models = json.loads(
+    model_summary = json.loads(
         (config.RURAL_PROCESSED_DIR / "model_summary.json").read_text(encoding="utf-8")
     )
+    location_model = model_summary["models"]["location_success"]
 
     cell_records = []
     multipart_cells = 0
@@ -194,27 +183,23 @@ def build_payload() -> tuple[dict, dict]:
                 "m": None if pd.isna(row.municipality) else str(row.municipality),
                 "k": CELL_CLASS_KEYS[row.cell_class],
                 "inr": bool(row.in_rural_analysis),
-                "rc": RURAL_CLASS_INDEX[row.rural_suitability_class],
-                "rs": _optional_number(row.rural_composite_suitability_score, 6),
+                "rc": SUITABILITY_CLASS_INDEX[row.rf_predicted_class],
+                "pl": _optional_number(row.rf_low_probability, 4),
+                "pm": _optional_number(row.rf_moderate_probability, 4),
+                "ph": _optional_number(row.rf_high_probability, 4),
                 "ta": _optional_number(row.distance_to_listed_tourist_place, 3),
                 "tn": None if pd.isna(row.nearest_listed_tourist_place) else str(row.nearest_listed_tourist_place),
-                "mr": _optional_number(row.nearby_mean_revenue, 2),
-                "mo": _optional_number(row.nearby_mean_occupancy, 5),
-                "cc": None if pd.isna(row.competition_listing_count) else int(row.competition_listing_count),
-                "lc": None if pd.isna(row.listings_in_cell) else int(row.listings_in_cell),
-                "ln": None if pd.isna(row.listings_nearby) else int(row.listings_nearby),
-                "rr": _optional_number(row.rural_predicted_revenue, 2),
-                "ro": _optional_number(row.rural_predicted_occupancy, 5),
-                "tac": _optional_number(row.tourist_access_contribution, 4),
-                "nmc": _optional_number(row.nearby_market_contribution, 4),
-                "lcc": _optional_number(row.local_competition_contribution, 4),
+                "sr": _optional_number(row.surrounding_mean_revenue, 2),
+                "so": _optional_number(row.surrounding_mean_occupancy, 5),
+                "sl": None if pd.isna(row.surrounding_listing_count) else int(row.surrounding_listing_count),
+                "pc": None if pd.isna(row.listed_places_within_radius) else int(row.listed_places_within_radius),
                 "f": _feature_row(row),
             }
         )
 
     payload = {
-        "ruralClasses": list(RURAL_CLASSES),
-        "ruralClassColors": list(RURAL_CLASS_COLORS),
+        "ruralClasses": list(SUITABILITY_CLASSES),
+        "ruralClassColors": list(SUITABILITY_CLASS_COLORS),
         "numericFields": [{"key": key, "label": label} for key, label in NUMERIC_FIELDS],
         "bounds": [
             [float(cells.total_bounds[1]), float(cells.total_bounds[0])],
@@ -223,15 +208,18 @@ def build_payload() -> tuple[dict, dict]:
         "cells": cell_records,
         "places": places,
         "listings": listings,
-        "weights": rural_summary["weights"],
-        "weightingMethod": rural_summary["weighting_method"],
-        "neighborhoodRadiusKm": rural_summary["neighborhood_radius_km"],
+        "weightingMethod": suitability_summary["weighting_method"],
+        "neighborhoodRadiusKm": suitability_summary["neighborhood_radius_km"],
+        "performanceRule": suitability_summary["rule"],
+        "beatsBaseline": bool(location_model["macro_f1_above_majority_baseline"]),
+        "testMacroF1": location_model["test_metrics"]["macro_f1"],
+        "testMacroF1Std": location_model["test_metrics"].get("cv", {}).get("macro_f1", {}).get("std"),
+        "baselineMacroF1": location_model["baseline_metrics"]["macro_f1"],
         "forest": {
             "features": [
-                {"key": column, "label": FEATURE_LABELS[column]} for column in FEATURE_COLUMNS
+                {"key": column, "label": FEATURE_LABELS[column]} for column in CLASSIFIER_FEATURES
             ],
-            "revenueImportance": _importance_rows(rural_models, "revenue"),
-            "occupancyImportance": _importance_rows(rural_models, "occupancy"),
+            "importance": _importance_rows(model_summary),
         },
         "totalCells": int(len(cells)),
         "ruralCells": int((cells["cell_class"] == RURAL_CELL).sum()),
@@ -286,8 +274,8 @@ def main() -> None:
                       "grid_unchanged": before == after,
                       "rural_grid_unchanged": rural_before == rural_after,
                       "html_kb": round(size_kb, 1)}, indent=2))
-    print("rural class counts:", {label: sum(1 for c in payload["cells"] if c["rc"] == i)
-                                  for i, label in enumerate(RURAL_CLASSES)})
+    print("suitability class counts:", {label: sum(1 for c in payload["cells"] if c["rc"] == i)
+                                        for i, label in enumerate(SUITABILITY_CLASSES)})
 
 
 if __name__ == "__main__":

@@ -16,12 +16,8 @@ from str_suitability.rural.classify import (
 )
 from str_suitability.rural.pipeline import run_rural_pipeline
 from str_suitability.rural.psa import RURAL, URBAN, URBAN_RURAL_COLUMN
-from str_suitability.rural.suitability import (
-    IN_RURAL_ANALYSIS_COLUMN,
-    OUTSIDE_RURAL_ANALYSIS_LABELS,
-    RURAL_CLASS_COLUMN,
-    RURAL_SCORE_COLUMN,
-)
+from str_suitability.modeling.location_classifier import CLASS_COLUMN, PROBABILITY_COLUMNS
+from str_suitability.rural.suitability import IN_RURAL_ANALYSIS_COLUMN
 from str_suitability.suitability.stage import compute_suitability
 
 SMALL_PARAM_GRID = {"n_estimators": [5], "max_depth": [3]}
@@ -132,15 +128,25 @@ def write_inputs(tmp_path, make_grid, make_barangays):
 
 @pytest.fixture
 def configured(tmp_path, monkeypatch, make_grid, make_barangays):
-    from str_suitability.modeling import train
-
     processed, interim, output, polygons, classification_json, classification_csv = write_inputs(
         tmp_path, make_grid, make_barangays
     )
     monkeypatch.setattr(config, "BARANGAY_POLYGONS_PATH", polygons)
     monkeypatch.setattr(config, "BARANGAY_CLASSIFICATION_PATH", classification_json)
     monkeypatch.setattr(config, "RURAL_URBAN_LISTINGS_PATH", classification_csv)
-    monkeypatch.setattr(train, "PARAM_GRID", SMALL_PARAM_GRID)
+    monkeypatch.setattr(config, "PARAM_GRID", SMALL_PARAM_GRID)
+    monkeypatch.setattr(
+        config,
+        "CLASSIFIER_PARAMS",
+        {
+            "n_estimators": 8,
+            "max_depth": 3,
+            "max_features": "sqrt",
+            "min_samples_leaf": 1,
+            "min_samples_split": 2,
+        },
+    )
+    monkeypatch.setattr(config, "PERMUTATION_REPEATS", 2)
 
     report = run_rural_pipeline(processed_dir=processed, output_dir=output, interim_dir=interim)
     return report, output, processed
@@ -165,23 +171,14 @@ def test_pipeline_trains_on_rural_listings_only(configured):
     assert training["rural_cells_with_fitted_rural_listings"] == RURAL_CELLS
 
 
-def test_pipeline_predicts_the_rural_domain_only(configured):
+def test_pipeline_scores_every_cell_from_the_classifier(configured):
     report, _, _ = configured
     domain = report["prediction_domain"]
-    assert domain["rural_cells_predicted"] == RURAL_CELLS
-    assert domain["urban_cells_excluded"] == URBAN_CELLS
-    assert domain["unclassified_cells_excluded"] == 0
-
-
-def test_pipeline_weights_sum_to_one(configured):
-    report, _, _ = configured
-    weights = report["weights"]
-    assert sum(weights.values()) == pytest.approx(1.0)
-    assert weights["distance_to_listed_tourist_place"] == pytest.approx(1.0 / 3.0)
-    assert weights["nearby_mean_revenue"] == pytest.approx(1.0 / 6.0)
-    assert weights["nearby_mean_occupancy"] == pytest.approx(1.0 / 6.0)
-    assert weights["competition_listing_count"] == pytest.approx(1.0 / 3.0)
-    assert set(weights).isdisjoint(config.POI_BLOC_INDICATORS)
+    assert domain["cells_scored"] == RURAL_CELLS + URBAN_CELLS
+    assert domain["labeled_cells"] == RURAL_CELLS + URBAN_CELLS
+    assert "macro_f1" in report["test_metrics"]
+    assert "balanced_accuracy" in report["baseline_metrics"]
+    assert "weights" not in report
 
 
 def test_pipeline_writes_every_rural_output(configured):
@@ -189,8 +186,7 @@ def test_pipeline_writes_every_rural_output(configured):
     for name in (
         "grid_rural_classification.parquet",
         "training_observations.parquet",
-        "predicted_revenue.parquet",
-        "predicted_occupancy.parquet",
+        "location_training_cells.parquet",
         "grid_suitability.parquet",
         "model_summary.json",
         "suitability_summary.json",
@@ -198,46 +194,53 @@ def test_pipeline_writes_every_rural_output(configured):
         assert (output / name).exists(), f"{name} was not written"
 
 
-def test_pipeline_output_masks_urban_cells(configured):
+def test_pipeline_scores_urban_cells_too(configured):
     _, output, _ = configured
     scored = gpd.read_parquet(output / "grid_suitability.parquet")
     urban = scored[scored[CELL_CLASS_COLUMN] == URBAN_CELL]
     rural = scored[scored[CELL_CLASS_COLUMN] == RURAL_CELL]
 
     assert len(scored) == RURAL_CELLS + URBAN_CELLS
-    assert urban[RURAL_SCORE_COLUMN].isna().all()
-    assert set(urban[RURAL_CLASS_COLUMN]) == {OUTSIDE_RURAL_ANALYSIS_LABELS[URBAN_CELL]}
-    assert rural[RURAL_SCORE_COLUMN].notna().all()
+    assert set(scored[CLASS_COLUMN]) <= set(config.PERFORMANCE_CLASS_LABELS)
+    assert np.allclose(scored[list(PROBABILITY_COLUMNS)].sum(axis=1), 1.0)
+    highest = scored[list(PROBABILITY_COLUMNS)].to_numpy().argmax(axis=1)
+    expected = [config.PERFORMANCE_CLASS_LABELS[int(index)] for index in highest]
+    assert scored[CLASS_COLUMN].tolist() == expected
     assert scored[IN_RURAL_ANALYSIS_COLUMN].sum() == RURAL_CELLS
 
 
-def test_pipeline_reports_both_models(configured):
+def test_pipeline_reports_the_location_classifier(configured):
     _, output, _ = configured
     summary = json.loads((output / "model_summary.json").read_text())
-    assert set(summary["models"]) == {"revenue", "occupancy"}
-    for name in ("revenue", "occupancy"):
-        metrics = summary["models"][name]
-        assert {"mae", "rmse", "r2", "n"} <= set(metrics["test_metrics"])
-        assert metrics["best_params"]
-        assert metrics["importance"]
-    assert summary["rural_training"]["fitted_rural_listings"] == RURAL_CELLS
-
-
-def test_saved_predictions_cover_only_rural_cells(configured):
-    _, output, _ = configured
-    classification = pd.read_parquet(output / "grid_rural_classification.parquet")
-    rural_ids = set(
-        classification.loc[classification[CELL_CLASS_COLUMN] == RURAL_CELL, CELL_ID_COLUMN]
-    )
-    outside_ids = set(
-        classification.loc[classification[CELL_CLASS_COLUMN] != RURAL_CELL, CELL_ID_COLUMN]
-    )
-    assert rural_ids.isdisjoint(outside_ids)
-
-    for name in ("predicted_revenue", "predicted_occupancy"):
-        frame = pd.read_parquet(output / f"{name}.parquet")
-        assert set(frame[CELL_ID_COLUMN]) == rural_ids
-        assert len(frame) == RURAL_CELLS
+    suitability = json.loads((output / "suitability_summary.json").read_text())
+    model = summary["models"]["location_success"]
+    assert suitability["weighting_method"] == "random_forest_classifier"
+    assert "entropy" not in suitability["weighting_method"]
+    assert {
+        "accuracy",
+        "balanced_accuracy",
+        "macro_precision",
+        "macro_recall",
+        "macro_f1",
+        "weighted_f1",
+        "confusion_matrix",
+    } <= set(model["test_metrics"])
+    assert "fisher_jenks" not in suitability
+    assert suitability["predicted_class"] == "rf_predicted_class"
+    assert model["baseline_metrics"]["n"] == model["test_metrics"]["n"]
+    assert model["importance"]
+    assert "importance_std" in model["importance"][0]
+    assert model["test_metrics"]["n_folds"] == model["baseline_metrics"]["n_folds"]
+    assert "cv" in model["test_metrics"]
+    experiments = model["experiments"]
+    assert experiments["prespecified_model"]["replaced_by_experiments"] is False
+    assert experiments["prespecified_model"]["radius_km"] == 5.0
+    assert experiments["prespecified_model"]["market_statistic"] == "mean"
+    assert experiments["leaf_sizes"]["final_model_changed"] is False
+    training = pd.read_parquet(output / "location_training_cells.parquet")
+    assert "cell_mean_revenue" in training.columns
+    assert "cell_mean_revenue" not in model["features"]
+    assert "surrounding_mean_revenue" in model["features"]
 
 
 def test_suitability_runs_over_exactly_the_rural_cells(make_grid, make_barangays):

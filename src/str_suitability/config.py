@@ -59,7 +59,29 @@ SITE_SCORE_WEIGHTS = {
 TEST_SIZE = 0.2
 CV_FOLDS = 5
 RANDOM_STATE = 42
+PERMUTATION_REPEATS = 30
+EXPERIMENT_RADII_KM = (1.0, 3.0, 5.0)
+EXPERIMENT_LEAF_SIZES = (1, 2, 5, 10)
 BLEND_RATIO = 0.5
+
+# Historical performance label only. These weights are not applied after prediction.
+PERFORMANCE_REVENUE_WEIGHT = 0.5
+PERFORMANCE_OCCUPANCY_WEIGHT = 0.5
+PERFORMANCE_LOW_PERCENTILE = 25
+PERFORMANCE_HIGH_PERCENTILE = 75
+MIN_LISTINGS_FOR_LABEL = 1
+PERFORMANCE_CLASS_LABELS = (
+    "Low",
+    "Moderate",
+    "High",
+)
+CLASSIFIER_PARAMS = {
+    "n_estimators": 200,
+    "max_depth": 10,
+    "max_features": "sqrt",
+    "min_samples_leaf": 1,
+    "min_samples_split": 2,
+}
 
 PARAM_GRID = {
     "n_estimators": [200, 500],
