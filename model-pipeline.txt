@@ -1,0 +1,483 @@
+LAGUNA RURAL SHORT-TERM RENTAL MODEL
+Brief for another system. Describes the model that is actually running.
+Numbers under "LAST RUN" come from data/processed/rural/ after the latest
+successful scripts/run_rural.py. They change if that script is run again.
+Do not invent Google ratings, OpenStreetMap place weights, or a 2 km or 10 km radius.
+
+================================================================================
+1. QUESTION
+================================================================================
+
+Find rural 1 km cells in Laguna, Philippines, that are better places to put
+an Airbnb.
+
+A better cell is all three of these at once:
+  - close to a curated tourist place
+  - has a real nearby market (listings already earning and filling)
+  - is not already crowded with those listings
+
+The map color answers that question. The random forest does not.
+
+================================================================================
+2. TWO SEPARATE MACHINES
+================================================================================
+
+MACHINE A, the site score. This paints the map red, yellow, or green.
+  Fixed weights. No learned weights. No entropy weighting.
+  Inputs: distance to poi_laguna.json, mean revenue within 5 km,
+  mean occupancy within 5 km, count of active listings within 5 km.
+
+MACHINE B, two random forests. These fill the popup's predicted revenue
+  and predicted occupancy. They do not change the color.
+  Inputs: distance to the nearest listed place, count of listed places
+  within 5 km, count of active listings within 5 km.
+  Targets: trailing-twelve-month revenue, trailing-twelve-month occupancy.
+
+If a sentence mixes "the model" without saying which machine, it is wrong.
+The green color is Machine A. The popup's peso prediction is Machine B.
+
+================================================================================
+3. STACK AND HOW TO RUN
+================================================================================
+
+Python project. Package manager is uv, not npm.
+Project folder: laguna-STRDSS
+Package: src/str_suitability
+
+From laguna-STRDSS:
+  uv run python scripts/run_rural.py
+  uv run python scripts/build_visualisation.py
+
+Then open data/processed/frontend/index.html in a browser.
+Map background is Mapbox outdoors. The public token is read at build time
+from .mapbox_token or the MAPBOX_TOKEN environment variable. That file is
+gitignored. Do not print the token.
+
+scripts/run_suitability.py no longer builds a score. It only prints that the
+rural site score is the result. Do not revive the old province-wide hybrid.
+
+================================================================================
+4. DATA THE MODEL IS ALLOWED TO USE
+================================================================================
+
+Tourist places
+  File: data/poi_laguna.json
+  Loaded by load_listed_tourist_places in src/str_suitability/rural/site_score.py
+  Kept columns: name, latitude, longitude.
+  Rows with missing coordinates are dropped.
+  A rating field, if present, is ignored. Teammates rejected Google ratings.
+  Last run: 172 places.
+
+Airbnb listings
+  Source listings: data/laguna_listings.json
+  Monthly history: data/history
+  Built table: data/interim/airroi_targets.parquet
+  A listing is active (column in_training_population) when it is not dormant
+  and has a positive month inside the trailing-twelve-month window.
+  Window: August 2025 through July 2026 (config TTM_WINDOW_START / TTM_WINDOW_END).
+  Targets on each active listing:
+    ttm_revenue     trailing-twelve-month revenue in pesos
+    ttm_occupancy   trailing-twelve-month occupancy, a rate (about 0 to 1)
+  Last run: 1,277 active listings.
+  The site score uses every active listing, including ones in urban barangays,
+  when they fall within 5 km of a rural cell.
+  The forest uses only active listings whose barangay is PSA-rural. See section 8.
+
+Rural versus urban labels
+  Barangay polygons: data/laguna.geojson
+  PSA barangay class: data/barangay_with_classification.json
+  Listing class table: data/interim/airoi_rural_urban.csv
+  Class is the PSA urban/rural flag of the barangay, matched through PSGC.
+  It is not matched by barangay name.
+
+Explicitly not used in either machine
+  Google ratings.
+  OpenStreetMap restaurants, shops, bus stops, parks, and the six density
+  columns (poi_density_restaurants, poi_density_commercial,
+  poi_density_transportation, poi_density_recreation,
+  poi_density_tourist_attraction, poi_density_other_facilities).
+  Those densities may still be computed onto the province grid by the older
+  feature builder. They are not weights and they are not map dots.
+  Property attributes (bedrooms, price, host). Empty cells must still be
+  scorable, so the forest cannot require a building that does not exist yet.
+  Population density is not a forest feature and not a site-score term.
+
+================================================================================
+5. GRID AND WHO GETS A COLOR
+================================================================================
+
+CRS of the grid: EPSG:32651 (UTM zone 51N). Map display uses EPSG:4326.
+Cell size: 1 km. Cells that are less than half land are dropped.
+Water, including Laguna de Bay, is cut out of the land grid.
+Last run: 1,764 cells.
+
+A cell is rural, urban, or unclassified from barangay area, not from the
+point's barangay alone.
+  Rural if at least 50 percent of the barangay-covered area inside the cell
+  is PSA-rural (RURAL_AREA_SHARE_THRESHOLD = 0.5).
+  Urban if the urban share meets that rule instead.
+  Otherwise unclassified.
+Last run: 1,041 rural, 693 urban, 30 unclassified.
+
+Only rural cells receive a site score and a forest prediction.
+Urban and unclassified cells stay on the map in grey. Their score is missing.
+The popup says they are outside the rural score. They are not red, yellow,
+or green.
+
+A listing's own class can disagree with its cell's class. The listing takes
+the barangay that contains the point. The cell takes the majority area.
+Last run: of the fitted rural-barangay listings, 215 sit in rural cells and
+30 sit in urban cells.
+
+================================================================================
+6. MACHINE A, THE SITE SCORE
+================================================================================
+
+Code: compute_site_score in src/str_suitability/rural/site_score.py
+Radius: NEIGHBORHOOD_RADIUS_KM = 5.0 km. One radius. Not tuned. Not compared
+with 2 km or 10 km. Haversine on longitude/latitude.
+
+Measured on each rural cell, from the cell centroid unless noted:
+
+  distance_to_listed_tourist_place
+    Kilometers to the nearest place in poi_laguna.json.
+    nearest_listed_tourist_place stores that place's name.
+    Direction: closer is better (negative indicator).
+
+  nearby_mean_revenue
+    Mean ttm_revenue of active listings within 5 km of the centroid.
+    If the count is zero, the mean is 0. It does not copy a neighbor's mean.
+    Direction: higher is better.
+
+  nearby_mean_occupancy
+    Mean ttm_occupancy of those same listings.
+    If the count is zero, the mean is 0.
+    Direction: higher is better.
+
+  listings_in_cell
+    Active listings whose point falls inside the cell polygon.
+
+  listings_nearby
+    Active listings within 5 km of the centroid. This is the market sample size.
+
+  competition_listing_count
+    Listings inside the cell, plus other active listings within 5 km that are
+    not already inside the cell. Counted once.
+    On a 1 km cell this is effectively the 5 km count, because the cell sits
+    inside the circle.
+    Direction: fewer is better (negative indicator).
+
+Normalization, across the rural cells only, in minimum_maximum_normalize:
+  Positive indicator: (value - min) / (max - min)
+  Negative indicator: (max - value) / (max - min)
+  Each normalized value is between 0 and 1. 1 is the best cell on that indicator.
+
+Weights, fixed, sum to 1. Method name: reserved_blocs.
+  distance_to_listed_tourist_place     1/3
+  nearby_mean_revenue                  1/6
+  nearby_mean_occupancy                1/6
+  competition_listing_count            1/3
+
+  Bloc tourist access     = 1/3
+  Bloc nearby market      = 1/6 + 1/6 = 1/3
+  Bloc local competition  = 1/3
+
+Score
+  rural_composite_suitability_score
+    = (1/3) * normalized distance
+    + (1/6) * normalized revenue
+    + (1/6) * normalized occupancy
+    + (1/3) * normalized competition
+
+The popup shows the three bloc contributions, which already include the weights:
+  tourist_access_contribution
+  nearby_market_contribution
+  local_competition_contribution
+Their sum is the score, aside from rounding.
+
+Empty neighborhood
+  Zero listings nearby forces both market terms to the raw value 0.
+  After min-max, 0 is the worst market, so that cell gets no market points.
+  It can still score on access and on competition. With no competitors the
+  competition term is at its best, so an empty cell near a place can look
+  moderate. It cannot look strong on market.
+
+What the score is not
+  It is not the forest prediction.
+  It is not an entropy-weight blend. An older province score did that and
+  gave the predictions almost no weight, because six sparse OpenStreetMap
+  densities took about 97 percent. That path is retired.
+  Listing count is a penalty here on purpose. It is not circular inside this
+  formula: the market rewards high revenue and occupancy, and the competition
+  term separately punishes a high count.
+
+================================================================================
+7. COLORS
+================================================================================
+
+Code: classify_traffic_light in src/str_suitability/suitability/classify.py
+Algorithm: mapclassify.FisherJenks with k = 3.
+Labels, in order: Low, Moderate, High.
+Map colors: Low #d73027 red, Moderate #fee08b yellow, High #1a9850 green.
+Grey is outside the rural score, not a fourth Jenks class.
+
+Fisher-Jenks lines the rural scores up and cuts them into three contiguous
+groups so scores inside a group are as similar as possible (minimum within-class
+sum of squared deviations). The reported breaks are the upper edge of each group.
+The last break is the maximum score, not a third threshold you must clear.
+
+LAST RUN breaks, from data/processed/rural/suitability_summary.json:
+  Low ends at      0.5807525240027507     146 cells
+  Moderate ends at 0.6957000758135692     581 cells
+  High ends at     0.9225665589220993     314 cells
+
+A cell is High when its score is above 0.6957000758135692.
+0.9226 is only the best cell's score (cell r0022c0038 on that run).
+These edges are recomputed from the scores. They are not constants in the code.
+Chapter 3 of the thesis asked for five Jenks classes. The rural map uses three
+because the legend is red, yellow, green. The five-class function
+classify_suitability still exists for the older thesis path. Do not describe
+the rural map as five classes.
+
+The method is the published Jenks natural breaks algorithm, implemented as
+Fisher's exact partition (Fisher 1958; Jenks 1967). The project uses FisherJenks
+rather than mapclassify.NaturalBreaks because NaturalBreaks was not stable
+across repeated calls. See docs/adr/0014-jenks-fisher-algorithm-and-class-labels.md.
+Optimality is only "best grouping of these scores into 3 classes." It does not
+prove that 3 is a better number of classes than 5, and it does not prove that
+a High cell is a good business. The score formula does that job. Jenks only paints it.
+
+================================================================================
+8. MACHINE B, THE RANDOM FORESTS
+================================================================================
+
+Entry: run_rural_pipeline in src/str_suitability/rural/pipeline.py
+  called by scripts/run_rural.py
+Training: train_model and tune_and_train in src/str_suitability/modeling/train.py
+Wrapper: run_model in src/str_suitability/pipeline.py
+Prediction: predict_rural_cells in src/str_suitability/rural/prediction.py
+Features constant: FOREST_FEATURE_COLUMNS in site_score.py
+  distance_to_listed_tourist_place
+  listed_places_within_radius
+  active_listings_within_radius
+Those three are also computed onto every grid cell by attach_forest_features,
+using haversine and the same 5 km radius.
+
+Who is trained on
+  Listings whose barangay is PSA-rural, that are active, and that could be
+  joined to a grid cell and to the three features.
+  LAST RUN
+    439 listings in rural barangays
+    264 of those active
+    245 fitted (19 dropped because they did not join a cell or features)
+    99 rural cells contain at least one of those 245
+    215 of the 245 sit in rural cells, 30 sit in urban cells
+    931 of 1,041 rural cells have no training listing
+  Top municipalities among the 245: Cavinti 52, Los Baños 47, San Pablo 42.
+  Busiest cell holds 30 listings (about 12 percent). 70 cells hold one listing.
+
+Targets, two separate forests
+  revenue forest predicts ttm_revenue
+  occupancy forest predicts ttm_occupancy
+  sklearn RandomForestRegressor. Not a classifier.
+
+Split
+  Primary scheme: grouped by cell_id.
+  GroupShuffleSplit, test_size 0.2, random_state 42.
+  A whole cell is either train or test. Listings from the same cell do not
+  leak across the split.
+  Then GroupKFold with 5 folds inside the training cells, inside GridSearchCV.
+  A second forest is fit with an ordinary random split only as a comparison.
+  The grouped forest is the one that predicts the map.
+  LAST RUN test size: 71 listings grouped, 49 listings on the random comparison.
+  Train size on the grouped fit: 174.
+
+Search grid, config.PARAM_GRID
+  n_estimators: 200 or 500
+  max_depth: None, 10, or 20
+  min_samples_split: 2 or 5
+  min_samples_leaf: 1 or 2
+  max_features: sqrt or 0.5
+  Scoring: neg_root_mean_squared_error
+  random_state: 42
+
+LAST RUN chosen settings
+  Revenue: 200 trees, max_depth unlimited, max_features sqrt,
+    min_samples_leaf 2, min_samples_split 5.
+  Occupancy: 200 trees, max_depth unlimited, max_features sqrt,
+    min_samples_leaf 2, min_samples_split 2.
+
+How a prediction is made
+  Each tree sees only the three features of that cell.
+  Each tree votes one number. The forest prediction is the average vote.
+  predict_rural_cells runs that on all 1,041 rural cells, including cells
+  with no listing. Stored as rural_predicted_revenue and rural_predicted_occupancy.
+  The popup sentence is: these are what the forests expect of a listing at
+  this location. They are not a forecast for a specific house, and they are
+  not the site score.
+
+Models are not saved to disk. The fitted trees exist only while run_rural.py
+is running. After the run, the metrics are in
+data/processed/rural/model_summary.json. The tree paths that were written
+during the run are in data/processed/rural/rural-cell-diagrams.md.
+That file has one section per cell. Rural cells include the score breakdown
+and the path through the first revenue tree (estimators_[0]). Cells outside
+the rural score only say they are outside.
+
+LAST RUN error, grouped test (the one that matters)
+  Revenue:     MAE 628,641    RMSE 820,840    R² -0.183    n 71
+  Occupancy:   MAE 0.117      RMSE 0.160      R² -0.205    n 71
+A negative R² means the forest did worse than predicting the test-set average.
+Grouped revenue train R² was about 0.43, so the fit looks better in-sample
+than on new cells.
+Random-split revenue R² was about 0.53. That number is optimistic because
+listings from the same cell can fall on both sides. Do not quote it as the
+result. Quote the grouped test.
+
+Why listing count is a forest feature even though it is also a penalty
+  Inside the forest, more nearby listings tend to travel with higher revenue.
+  The forest cannot be asked to treat that count as a punishment. The
+  punishment is only in Machine A.
+
+Permutation importance
+  Code: src/str_suitability/modeling/importance.py
+  sklearn permutation_importance on the grouped test, 30 repeats,
+  scoring neg_root_mean_squared_error, random_state 42.
+  The bars are global. Every cell popup shows the same bars.
+  The number under the bar is this cell's feature value. The importance
+  beside it is not this cell's contribution.
+
+  Meaning: shuffle one column on the held-out listings and see how error changes.
+  Positive: shuffling hurt, so the forest was using that column.
+  Negative: shuffling helped, so the forest's use of that column was adding
+  error on listings from cells it had not trained on.
+  Units: pesos of RMSE for revenue, occupancy-rate points of RMSE for occupancy.
+  A negative bar does not subtract from the site score.
+
+  LAST RUN revenue importance (mean)
+    active_listings_within_radius        +138,963.50
+    distance_to_listed_tourist_place      -49,190.01
+    listed_places_within_radius           -57,436.16
+  LAST RUN occupancy importance (mean), all slightly negative
+    distance_to_listed_tourist_place       -0.00427
+    active_listings_within_radius          -0.00491
+    listed_places_within_radius            -0.00574
+
+  Plain reading: on new cells, the revenue forest leans on how many listings
+  are nearby. Distance and place-count made revenue error worse when left in.
+  The occupancy forest is not getting a useful signal from any of the three.
+
+================================================================================
+9. WORKED CELL
+================================================================================
+
+Cell r0020c0034, municipality Calauan, class High, score about 0.698.
+This is just above the Moderate edge 0.6957, so it is barely green.
+
+  Nearest place: Mt. Lagula at 2.324 km.
+  Tourist access contribution: 0.271 out of a maximum 0.333.
+  Nearby market: mean revenue 505,565.92, mean occupancy 0.122, 24 listings
+  within 5 km. Market contribution: 0.116 out of 0.333.
+  Competition: 0 listings inside the cell, 24 in the cell and the 5 km
+  neighborhood. Competition contribution: 0.312 out of 0.333.
+  0.271 + 0.116 + 0.312 = 0.699, shown as 0.698.
+
+  Forest on the same cell, which does not change the 0.698:
+    24 active listings within 5 km
+    2.324 km to the nearest listed place
+    8 listed places within 5 km
+    predicted revenue about 423,952
+    predicted occupancy about 0.204
+  The market line is the observed mean of listings that already exist nearby.
+  The forest line is a separate guess. Here the guess is lower revenue and
+  higher occupancy than that observed mean.
+
+Another cell from the same run, the top score:
+  r0022c0038, High, score 0.9226 (this is the 0.923 break).
+  Nearest place Mt. Kalisungan at 1.581 km.
+  Nearby mean revenue about 1,526,304, occupancy 0.275, 5 listings within 5 km,
+  none inside the cell.
+
+A clearly low cell from the same run:
+  r0046c0040, Low, score 0.3333.
+  Nearest place Mt. Ping-As at 12.218 km.
+  No listings within 5 km, so the market contribution is zero.
+  The competition term is high only because there are no competitors.
+  Distance keeps the score in Low.
+
+================================================================================
+10. MAP
+================================================================================
+
+Built by scripts/build_visualisation.py into data/processed/frontend/index.html
+from scripts/visualisation_template.html.
+Leaflet 1.9.4. Background tiles:
+  Mapbox style mapbox/outdoors-v12, raster tiles, token injected at build time.
+
+Layers, and only these data layers:
+  Grid polygons colored by the three rural classes. Grey if outside.
+  Circle markers for the 1,277 active Airbnb listings.
+  Circle markers for the 172 poi_laguna.json places.
+No OpenStreetMap place dots. No province-wide five-class shading.
+
+Click any cell, including grey cells, and a modal opens.
+  Rural cell: class, the three contributions, forest predictions, and the
+  global importance bars.
+  Other cell: text that it is outside the rural score and has no Low,
+  Moderate, or High class.
+
+================================================================================
+11. FILES ANOTHER SYSTEM SHOULD READ FIRST
+================================================================================
+
+Score formula
+  src/str_suitability/rural/site_score.py
+  src/str_suitability/config.py          weights, radius, paths
+  src/str_suitability/suitability/normalize.py
+  src/str_suitability/suitability/classify.py
+
+Forest
+  src/str_suitability/modeling/train.py
+  src/str_suitability/pipeline.py        run_model
+  src/str_suitability/modeling/importance.py
+  src/str_suitability/rural/pipeline.py
+  src/str_suitability/rural/training.py
+  src/str_suitability/rural/prediction.py
+
+Rural versus urban
+  src/str_suitability/rural/classify.py
+  src/str_suitability/rural/psa.py
+
+Last-run numbers
+  data/processed/rural/suitability_summary.json
+  data/processed/rural/model_summary.json
+  data/processed/rural/grid_suitability.parquet
+  data/processed/rural/rural-cell-diagrams.md
+
+Map
+  scripts/build_visualisation.py
+  scripts/visualisation_template.html
+  data/processed/frontend/index.html
+
+Method notes already in the repo
+  docs/adr/0014-jenks-fisher-algorithm-and-class-labels.md
+  docs/adr/0005 property features stay out of the forest so empty cells predict
+  docs/adr/0013 had excluded listing density as circular. The rural site score
+  overrides that for Machine A only. The competition penalty is a separate
+  negative term. The forest still uses the count as an ordinary feature.
+
+================================================================================
+12. DO NOT TELL A PANEL THESE THINGS
+================================================================================
+
+Do not say 0.923 is a cutoff. It is the maximum score.
+Do not say the negative importance bars lower the site score.
+Do not say the forest sets the color.
+Do not quote the random-split R² as the test result. Quote the grouped test.
+Do not say the model uses OpenStreetMap restaurants, shops, parks, or ratings.
+Do not say the 5 km radius was optimized.
+Do not say three Jenks classes were required by Chapter 3. Chapter 3 says five.
+Three is the map legend chosen for this rural score.
+Do not say a High cell is proven to be a profitable new building. The score
+says it is close to a listed place, has some nearby revenue and occupancy,
+and is not relatively crowded, among the rural cells scored in this run.
