@@ -175,7 +175,8 @@ def make_model(name: str, **overrides):
     if name == "random_forest":
         params = dict(RF_PARAMS)
         params.update(overrides)
-        model = RandomForestClassifier(random_state=RANDOM_STATE, class_weight="balanced", n_jobs=-1, **params)
+        n_jobs = params.pop("n_jobs", -1)
+        model = RandomForestClassifier(random_state=RANDOM_STATE, class_weight="balanced", n_jobs=n_jobs, **params)
         return model, False
     if name == "logistic_regression":
         model = LogisticRegression(max_iter=5000, class_weight="balanced", random_state=RANDOM_STATE, **overrides)
