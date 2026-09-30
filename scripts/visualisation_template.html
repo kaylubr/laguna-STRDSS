@@ -2,43 +2,79 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Laguna STR suitability — scratch viewer</title>
+<title>Laguna rural location screener</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   html, body { margin:0; height:100%; font:13px/1.45 system-ui, sans-serif; }
   #map { position:absolute; inset:0; }
-  .panel { background:rgba(255,255,255,.95); padding:10px 12px; border-radius:6px;
-           box-shadow:0 1px 6px rgba(0,0,0,.3); width:310px; max-height:92vh; overflow:auto; }
-  .panel h1 { font-size:13px; margin:0 0 6px; }
-  .panel h2 { font-size:11px; text-transform:uppercase; letter-spacing:.04em;
-              margin:10px 0 4px; color:#555; }
-  .note { color:#7a2b00; background:#fff3e0; padding:6px 8px; border-radius:4px; margin:6px 0; }
-  .row { display:flex; align-items:center; gap:6px; margin:3px 0; }
-  .swatch { width:13px; height:13px; border:1px solid #444; border-radius:2px; flex:0 0 auto; }
-  .hollow { border-radius:50%; background:transparent !important; }
-  .num { margin-left:auto; font-variant-numeric:tabular-nums; color:#333; }
-  select { width:100%; margin-top:4px; }
-  .muted { color:#666; font-size:11px; }
-  .popup table { border-collapse:collapse; }
-  .popup td { padding:1px 8px 1px 0; font-variant-numeric:tabular-nums; }
-  .popup td:first-child { color:#555; }
-  #forest-modal { position:fixed; inset:0; background:rgba(20,20,20,.45); z-index:2000;
+  .panel { background:rgba(255,255,255,.96); padding:12px 14px 14px; border-radius:12px;
+           box-shadow:0 8px 28px rgba(0,0,0,.18); width:260px; max-height:92vh; overflow:auto; }
+  .panel h1 { font-size:14px; margin:0 0 2px; letter-spacing:-.02em; }
+  .panel h2 { font-size:10px; text-transform:uppercase; letter-spacing:.08em;
+              margin:12px 0 6px; color:#667085; }
+  .row { display:flex; align-items:center; gap:8px; margin:4px 0; }
+  .swatch { width:12px; height:12px; border:1px solid rgba(0,0,0,.25); border-radius:3px; flex:0 0 auto; }
+  .num { margin-left:auto; font-variant-numeric:tabular-nums; color:#344054; }
+  select { width:100%; margin-top:8px; border:1px solid #e4e7ec; border-radius:8px; padding:6px 8px; background:#fff; }
+  .muted { color:#667085; font-size:11px; }
+  label.row { margin-top:8px; }
+  .urban-label { background:transparent; border:0; color:#444; font:600 10px/1.2 system-ui, sans-serif;
+                 white-space:nowrap; text-align:center; text-shadow:0 0 3px #fff, 0 0 3px #fff; }
+  #forest-modal { position:fixed; inset:0; background:rgba(16,24,40,.45); z-index:2000;
                   display:none; align-items:center; justify-content:center; padding:24px; }
   #forest-modal.open { display:flex; }
-  .modal { background:#fff; width:min(560px, 100%); max-height:88vh; overflow:auto;
-           border-radius:8px; padding:16px 18px 20px; box-shadow:0 8px 28px rgba(0,0,0,.35); }
-  .modal h2 { font-size:15px; margin:0 0 4px; }
-  .modal h3 { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#555; margin:14px 0 6px; }
-  .modal table { width:100%; border-collapse:collapse; }
-  .modal td { padding:3px 8px 3px 0; vertical-align:top; }
-  .modal td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
-  .flow { display:flex; gap:6px; align-items:stretch; margin:8px 0 4px; }
-  .flow div { flex:1; background:#f4f7fb; border:1px solid #d5deea; border-radius:4px; padding:6px; }
-  .bar { height:8px; background:#d6e2f0; border-radius:4px; overflow:hidden; margin-top:3px; }
-  .bar span { display:block; height:100%; background:#1d4e89; }
-  button.close { float:right; }
+  .modal { position:relative; background:#fff; width:min(920px, 100%); max-height:86vh;
+           border-radius:16px; box-shadow:0 24px 60px rgba(0,0,0,.28);
+           display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,.9fr); overflow:hidden; }
+  .modal-main, .modal-tree { min-height:0; overflow:auto; max-height:86vh; }
+  .modal-main { padding:22px 22px 20px; }
+  .modal-tree { background:#2a3038; border-left:1px solid #1c2128; padding:18px 8px 20px 16px; }
+  .kicker { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#98a2b3; }
+  .hero { display:flex; align-items:center; gap:10px; margin:6px 0 4px; }
+  .hero h2 { font-size:32px; line-height:1; margin:0; letter-spacing:-.04em; }
+  .dot { width:16px; height:16px; border-radius:5px; border:1px solid rgba(0,0,0,.18); flex:0 0 auto; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 14px; }
+  .chip { font-size:11px; padding:3px 8px; border-radius:99px; background:#f2f4f7; color:#344054; }
+  .prob { display:grid; grid-template-columns:78px 1fr 44px; gap:8px; align-items:center; margin:6px 0; }
+  .prob span { color:#475467; }
+  .track { height:7px; background:#eef1f4; border-radius:99px; overflow:hidden; }
+  .track i { display:block; height:100%; border-radius:99px; }
+  .prob b { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
+  .stat { background:#f7f8fa; border-radius:10px; padding:8px 10px; }
+  .stat span { display:block; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:#98a2b3; }
+  .stat b { display:block; margin-top:2px; font-size:14px; font-weight:640; font-variant-numeric:tabular-nums; }
+  .line { margin:14px 0 0; font-size:12px; color:#475467; }
+  .tree-head { color:#c5d0dc; padding-right:36px; margin:0 4px 12px; line-height:1.45; }
+  .tree-head b { color:#fff; }
+  .step { margin:0 4px; }
+  .q, .vote { background:#343c48; border:1px solid rgba(255,255,255,.16); border-radius:12px; padding:8px 10px; }
+  .q b, .vote b { display:block; color:#fff; font-size:13px; letter-spacing:-.01em; }
+  .q span, .cmp { color:#d5dde6; font-size:12px; font-variant-numeric:tabular-nums; }
+  .cmp b { display:inline; font-size:13px; }
+  .fork { display:flex; align-items:center; gap:8px; min-height:32px; margin:0 0 0 16px;
+          border-left:2px solid #f4f7fb; padding:7px 0 7px 10px; }
+  .ans { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+         color:#fff; border-radius:99px; padding:2px 8px; }
+  .ans.yes { background:#2f6fed; }
+  .ans.no { background:#e06a2c; }
+  .side { margin-left:auto; color:#9aa6b2; font-size:10px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
+  .side:before { content:""; display:inline-block; width:16px; height:2px; background:#f4f7fb; margin-right:6px; vertical-align:middle; }
+  .vote { border-width:2px; }
+  .vote .kicker { margin-bottom:2px; }
+  .shares { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-top:8px; }
+  .shares div { background:rgba(255,255,255,.06); border-radius:8px; padding:4px 6px; }
+  .shares span { display:block; color:#9aa6b2; font-size:9px; letter-spacing:.05em; text-transform:uppercase; }
+  .shares b { font-size:12px; font-variant-numeric:tabular-nums; }
+  button.close { position:absolute; top:12px; right:12px; z-index:2; width:28px; height:28px;
+                 border:0; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.16);
+                 cursor:pointer; font-size:16px; line-height:1; color:#344054; }
+  @media (max-width: 760px) {
+    .modal { grid-template-columns: 1fr; }
+    .modal-tree { border-left: 0; border-top: 1px solid #eceff3; }
+  }
 </style>
 </head>
 <body>
@@ -57,7 +93,8 @@ const FIELD_KEYS = {
   surrounding_mean_occupancy: 'so',
   surrounding_listing_count: 'sl',
   distance_to_listed_tourist_place: 'ta',
-  listed_places_within_radius: 'pc'
+  listed_places_within_radius: 'pc',
+  road_distance_km: 'rd'
 };
 
 const map = L.map('map', { preferCanvas: true });
@@ -68,14 +105,13 @@ L.tileLayer(
     attribution: '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }
 ).addTo(map);
-map.fitBounds(payload.bounds, { paddingTopLeft: [20, 20], paddingBottomRight: [340, 20] });
+map.fitBounds(payload.bounds, { paddingTopLeft: [20, 20], paddingBottomRight: [290, 20] });
 
+const ruralCells = payload.cells.filter(cell => cell.k === 0);
 const classCounts = payload.ruralClasses.map((_, index) =>
-  payload.cells.filter(cell => cell.rc === index).length);
-const f1Spread = payload.testMacroF1Std == null ? '' : ` (SD ${Number(payload.testMacroF1Std).toFixed(3)})`;
-const validationNote = payload.beatsBaseline
-  ? `Across the municipality folds, mean macro F1 was ${Number(payload.testMacroF1).toFixed(3)}${f1Spread}, above the majority-class baseline of ${Number(payload.baselineMacroF1).toFixed(3)}.`
-  : `Across the municipality folds, mean macro F1 was ${Number(payload.testMacroF1).toFixed(3)}${f1Spread}. It did not beat the majority-class baseline of ${Number(payload.baselineMacroF1).toFixed(3)}. The colors are still the model's predicted class. They are not evidence that the model is reliable.`;
+  ruralCells.filter(cell => cell.rc === index).length);
+const withMarket = ruralCells.filter(cell => cell.sl > 0).length;
+const noMarket = ruralCells.length - withMarket;
 const ruralLegend = payload.ruralClasses.map((label, index) =>
   `<div class="row"><span class="swatch" style="background:${payload.ruralClassColors[index]}"></span>
    <span>${label}</span><span class="num">${classCounts[index]}</span></div>`).join('');
@@ -84,19 +120,18 @@ const info = L.control({ position: 'topright' });
 info.onAdd = () => {
   const div = L.DomUtil.create('div', 'panel');
   div.innerHTML = `
-    <h1>Predicted Airbnb performance</h1>
-    <div class="note">Color is the random forest's predicted class: Low, Moderate, or High historical Airbnb performance. The class comes from the highest of P(Low), P(Moderate), and P(High). It is not a guaranteed return. ${payload.performanceRule}</div>
-    <div class="note">${validationNote}</div>
-    <div class="note">Features are the surrounding Airbnb market within <b>${payload.neighborhoodRadiusKm} km</b>, excluding listings inside the cell, plus landscape places in <code>poi_laguna.json</code> (falls, mountains, lakes, rivers). A blank surrounding mean means there was no other listing in that radius, not that revenue was zero. A cell with no listing of its own is predicted, not labeled Low.</div>
-    <div class="muted">${payload.listings.length.toLocaleString()} Airbnb listings ·
-      ${payload.places.length.toLocaleString()} places from poi_laguna.json ·
-      ${payload.totalCells.toLocaleString()} cells</div>
-    <h2>Shade cells by</h2>
+    <h1>Rural screener</h1>
+    <div class="muted">Weak screen · F1 ${Number(payload.testMacroF1).toFixed(3)} vs guess ${Number(payload.stratifiedMacroF1).toFixed(3)} · High ${payload.highCallsMatched}/${payload.highCallsMade}</div>
     <select id="field">
-      <option value="class" selected>Predicted performance class</option>
+      <option value="class" selected>Highest probability</option>
     </select>
-    <div id="fieldnote" class="muted">Low is red. Moderate is yellow. High is green.</div>
-    <h2>Predicted Airbnb performance</h2>${ruralLegend}`;
+    <label class="row"><input id="roads" type="checkbox" checked> Roads</label>
+    <div id="fieldnote" class="muted"></div>
+    <h2>Rural</h2>${ruralLegend}
+    <div class="row"><span class="swatch" style="background:#fff;border-style:dashed"></span><span>No market</span><span class="num">${noMarket}</span></div>
+    <h2>Not included</h2>
+    <div class="row"><span class="swatch" style="background:#fff"></span><span>Urban</span><span class="num">${payload.urbanCells}</span></div>
+    <div class="row"><span class="swatch" style="background:transparent"></span><span>Unclassified</span><span class="num">${payload.unclassifiedCells}</span></div>`;
   L.DomEvent.disableClickPropagation(div);
   L.DomEvent.disableScrollPropagation(div);
   return div;
@@ -131,51 +166,91 @@ function ramp(t) {
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
-const RURAL_STATUS = {
-  0: 'inside the rural analysis',
-  1: 'urban — outside the rural analysis',
-  2: 'unclassified — outside the rural analysis'
-};
+function formatTreeValue(index, value) {
+  if (value === null || value === undefined) return 'blank';
+  if (index === 1 || index === 4) return Number(value).toFixed(3);
+  if (index === 2 || index === 3) return Math.round(Number(value)).toLocaleString();
+  return Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 });
+}
 
-function importanceLookup(rows) {
-  return Object.fromEntries(rows.map(row => [row.feature, row.importance]));
+const TREE_SHORT = ['Revenue', 'Occupancy', 'Listings', 'Places', 'Place km'];
+
+function treeDiagram(cell) {
+  const trace = cell.tp;
+  if (!trace || !trace.steps.length) return '';
+  const names = payload.ruralClasses;
+  const colors = payload.ruralClassColors;
+  const leafIndex = trace.leaf.indexOf(Math.max(...trace.leaf));
+  const steps = trace.steps.map(step => {
+    const feature = TREE_SHORT[step[0]];
+    const goLeft = step[4] === 1;
+    const answer = goLeft ? 'Yes' : 'No';
+    const other = goLeft ? 'No' : 'Yes';
+    const comparison = step[1] === 2
+      ? '<b>blank</b>'
+      : `<b>${formatTreeValue(step[0], step[3])}</b> ${goLeft ? '≤' : '>'} ${formatTreeValue(step[0], step[2])}`;
+    return `<div class="step">
+      <div class="q"><b>${feature}</b><div class="cmp">${comparison}</div></div>
+      <div class="fork"><span class="ans ${answer.toLowerCase()}">${answer}</span><span class="side">${other} · not taken</span></div>
+    </div>`;
+  }).join('');
+  const shares = trace.leaf.map((share, index) =>
+    `<div><span>${names[index]}</span><b style="color:${colors[index]}">${share.toFixed(2)}</b></div>`
+  ).join('');
+  const forestNote = cell.k === 0 && leafIndex !== cell.rc
+    ? `<div class="kicker" style="margin-top:8px">Forest vote · ${names[cell.rc]}</div>`
+    : '';
+  return `<div class="tree-head">Trained to vote <b>Low</b>, <b>Moderate</b>, or <b>High</b>. Tree 1 of 200.</div>
+    ${steps}
+    <div class="vote" style="border-color:${colors[leafIndex]}">
+      <div class="kicker">This vote</div>
+      <b style="color:${colors[leafIndex]}">${names[leafIndex]}</b>
+      <div class="shares">${shares}</div>
+    </div>
+    ${forestNote}`;
 }
 
 function openForestModal(cell) {
-  const importance = importanceLookup(payload.forest.importance);
-  const ranked = payload.forest.features
-    .map((feature, index) => ({
-      label: feature.label,
-      value: cell.f ? cell.f[index] : null,
-      importance: importance[feature.key] || 0
-    }))
-    .sort((a, b) => b.importance - a.importance);
-  const peak = Math.max(...ranked.map(row => Math.abs(row.importance)), 0.000001);
-  const featureRows = ranked.map(row => `
-    <tr>
-      <td>${row.label}<div class="muted">${formatValue(row.value)}</div>
-        <div class="bar"><span style="width:${Math.max(0, row.importance) / peak * 100}%"></span></div>
-      </td>
-      <td>${row.importance.toFixed(3)}</td>
-    </tr>`).join('');
-  const placeKind = cell.k === 0 ? 'rural' : cell.k === 1 ? 'urban' : 'unclassified';
+  const names = payload.ruralClasses;
+  const colors = payload.ruralClassColors;
+  const rural = cell.k === 0;
+  const urban = cell.k === 1;
+  const title = urban ? 'Urban' : rural ? names[cell.rc] : 'Unclassified';
+  const fill = urban ? '#ffffff' : rural ? colors[cell.rc] : 'transparent';
+  const probs = [cell.pl, cell.pm, cell.ph];
+  const bars = names.map((name, index) => `
+    <div class="prob"><span>${name}</span>
+      <div class="track"><i style="width:${Math.round(probs[index] * 100)}%;background:${colors[index]}"></i></div>
+      <b>${Number(probs[index]).toFixed(2)}</b></div>`).join('');
+  const chips = [
+    urban ? 'Not included' : rural ? 'Rural' : 'Not included',
+    cell.sl > 0 ? 'Market' : 'No market'
+  ].map(label => `<span class="chip">${label}</span>`).join('');
+  const occupancy = cell.so === null || cell.so === undefined ? '—' : Number(cell.so).toFixed(2);
+  const revenue = cell.sr === null || cell.sr === undefined ? '—' : Math.round(cell.sr).toLocaleString();
+  const line = urban
+    ? 'White on the map. Not in the rural screen.'
+    : rural
+      ? `Weak screen. ${names[cell.rc] === 'High' ? `High matched ${payload.highCallsMatched} of ${payload.highCallsMade}.` : `F1 ${Number(payload.testMacroF1).toFixed(3)} vs guess ${Number(payload.stratifiedMacroF1).toFixed(3)}.`}`
+      : 'No color. Not in the rural screen.';
   document.getElementById('forest-card').innerHTML = `
-    <button class="close" type="button" id="forest-close">Close</button>
-    <h2>Predicted performance: ${payload.ruralClasses[cell.rc]}</h2>
-    <div class="muted">${cell.m || ''} · ${cell.id} · ${placeKind}</div>
-    <h3>Probability</h3>
-    <table>
-      <tr><td>High</td><td>${formatValue(cell.ph)}</td></tr>
-      <tr><td>Moderate</td><td>${formatValue(cell.pm)}</td></tr>
-      <tr><td>Low</td><td>${formatValue(cell.pl)}</td></tr>
-      <tr><td>Nearest listed place<br><span class="muted">${cell.tn || '—'} · ${formatValue(cell.ta)} km · ${formatValue(cell.pc)} places within ${payload.neighborhoodRadiusKm} km</span></td>
-        <td></td></tr>
-      <tr><td>Surrounding market<br><span class="muted">mean revenue ${formatValue(cell.sr)} · occupancy ${formatValue(cell.so)} · ${formatValue(cell.sl)} listings within ${payload.neighborhoodRadiusKm} km outside this cell</span></td>
-        <td></td></tr>
-    </table>
-    <h3>What the forest used</h3>
-    <p class="muted">Permutation importance averaged across the municipality folds. A longer bar means shuffling that feature lowered macro F1. It is a predictive association, not a cause.</p>
-    <table>${featureRows}</table>`;
+    <button class="close" type="button" id="forest-close" aria-label="Close">×</button>
+    <div class="modal-main">
+      <div class="kicker">${cell.m || 'Laguna'} · ${cell.id}</div>
+      <div class="hero"><span class="dot" style="background:${fill}"></span><h2>${title}</h2></div>
+      <div class="chips">${chips}</div>
+      ${bars}
+      <div class="stats">
+        <div class="stat"><span>Places</span><b>${formatValue(cell.pc)}</b></div>
+        <div class="stat"><span>Nearest place</span><b>${formatValue(cell.ta)} km</b></div>
+        <div class="stat"><span>Listings</span><b>${formatValue(cell.sl)}</b></div>
+        <div class="stat"><span>Revenue</span><b>${revenue}</b></div>
+        <div class="stat"><span>Occupancy</span><b>${occupancy}</b></div>
+        <div class="stat"><span>Road</span><b>${formatValue(cell.rd)} km</b></div>
+      </div>
+      <p class="line">${line}</p>
+    </div>
+    <aside class="modal-tree">${treeDiagram(cell)}</aside>`;
   document.getElementById('forest-modal').classList.add('open');
   document.getElementById('forest-close').addEventListener('click', closeForestModal);
 }
@@ -200,9 +275,37 @@ const cellLayer = L.layerGroup().addTo(map);
 const cellShapes = payload.cells.map(cell => cell.g.map(part => {
   const shape = L.polygon(part, { color: '#444', weight: 0.4, fillOpacity: 0.75 });
   shape.on('click', event => openCell(cell, event));
+  if (cell.k === 1) shape.bindTooltip('Urban — not included', { sticky: true });
   shape.addTo(cellLayer);
   return shape;
 }));
+
+const urbanLabelLayer = L.layerGroup();
+payload.cells.forEach(cell => {
+  if (cell.k !== 1) return;
+  const ring = cell.g[0][0];
+  let lat = 0;
+  let lon = 0;
+  ring.forEach(point => { lat += point[0]; lon += point[1]; });
+  L.marker([lat / ring.length, lon / ring.length], {
+    interactive: false,
+    keyboard: false,
+    icon: L.divIcon({
+      className: 'urban-label',
+      html: 'Urban · not included',
+      iconSize: [118, 14],
+      iconAnchor: [59, 7]
+    })
+  }).addTo(urbanLabelLayer);
+});
+function syncUrbanLabels() {
+  const show = map.getZoom() >= 15;
+  const visible = map.hasLayer(urbanLabelLayer);
+  if (show && !visible) urbanLabelLayer.addTo(map);
+  if (!show && visible) map.removeLayer(urbanLabelLayer);
+}
+map.on('zoomend', syncUrbanLabels);
+syncUrbanLabels();
 
 const listingLayer = L.layerGroup().addTo(map);
 payload.listings.forEach(record => {
@@ -213,6 +316,13 @@ payload.listings.forEach(record => {
     .addTo(listingLayer);
 });
 
+const roadLayer = L.layerGroup().addTo(map);
+if (payload.roads.length) {
+  L.polyline(payload.roads, {
+    color: '#4a4a4a', weight: 1.1, opacity: 0.75, interactive: false
+  }).addTo(roadLayer);
+}
+
 const placeLayer = L.layerGroup().addTo(map);
 payload.places.forEach(record => {
   const [lon, lat, name] = record;
@@ -222,13 +332,42 @@ payload.places.forEach(record => {
     .addTo(placeLayer);
 });
 
+function applyScreen(shape, cell, fill, opacity) {
+  if (cell.k === 1) {
+    shape.setStyle({
+      fillColor: '#ffffff',
+      fillOpacity: 1,
+      color: '#8d8d8d',
+      weight: 0.7,
+      dashArray: null
+    });
+    return;
+  }
+  if (cell.k !== 0) {
+    shape.setStyle({
+      fillColor: '#ffffff',
+      fillOpacity: 0,
+      color: '#c8c8c8',
+      weight: 0.4,
+      dashArray: null
+    });
+    return;
+  }
+  const noMarket = !(cell.sl > 0);
+  shape.setStyle({
+    fillColor: fill,
+    fillOpacity: opacity,
+    color: '#333',
+    weight: noMarket ? 1.6 : 0.4,
+    dashArray: noMarket ? '3 3' : null
+  });
+}
+
 function styleCells(key) {
   if (key === 'class') {
     cellShapes.forEach((shapes, i) => {
       const cell = payload.cells[i];
-      shapes.forEach(shape => shape.setStyle({
-        fillColor: payload.ruralClassColors[cell.rc], fillOpacity: 0.8
-      }));
+      shapes.forEach(shape => applyScreen(shape, cell, payload.ruralClassColors[cell.rc], 0.8));
     });
     return;
   }
@@ -236,9 +375,10 @@ function styleCells(key) {
   const [lo, hi] = ranges[key];
   const span = (hi - lo) || 1;
   cellShapes.forEach((shapes, i) => {
-    const value = payload.cells[i][short];
+    const cell = payload.cells[i];
+    const value = cell[short];
     const color = value === null || value === undefined ? '#d9d9d9' : ramp((value - lo) / span);
-    shapes.forEach(shape => shape.setStyle({ fillColor: color, fillOpacity: 0.85 }));
+    shapes.forEach(shape => applyScreen(shape, cell, color, 0.85));
   });
 }
 
@@ -247,17 +387,30 @@ select.addEventListener('change', event => {
   const field = payload.numericFields.find(f => f.key === event.target.value);
   const note = document.getElementById('fieldnote');
   if (event.target.value === 'class') {
-    note.textContent = 'Low is red. Moderate is yellow. High is green.';
+    note.textContent = '';
+  } else if (field && field.key === 'road_distance_km') {
+    note.textContent = `${ranges[field.key][0].toLocaleString()}–${ranges[field.key][1].toLocaleString()} km · not in the color`;
   } else if (field && field.key.startsWith('distance')) {
-    note.textContent = `lower is better · range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`;
+    note.textContent = `${ranges[field.key][0].toLocaleString()}–${ranges[field.key][1].toLocaleString()}`;
   } else if (field) {
     note.textContent = `range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`;
   }
 });
 
 styleCells('class');
+document.getElementById('roads').addEventListener('change', event => {
+  if (event.target.checked) map.addLayer(roadLayer);
+  else map.removeLayer(roadLayer);
+});
+map.on('overlayadd', event => {
+  if (event.name === 'Mapped roads') document.getElementById('roads').checked = true;
+});
+map.on('overlayremove', event => {
+  if (event.name === 'Mapped roads') document.getElementById('roads').checked = false;
+});
 L.control.layers(null, {
   'Grid cells': cellLayer,
+  'Mapped roads': roadLayer,
   'Airbnb listings': listingLayer,
   'Places from poi_laguna.json': placeLayer
 }, { collapsed: false }).addTo(map);

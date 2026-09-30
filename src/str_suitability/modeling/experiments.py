@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from str_suitability import config
+from str_suitability.features.road_distance import ROAD_DISTANCE_KM
 from str_suitability.modeling.location_classifier import (
     CELL_ID_COLUMN,
     CLASSIFIER_FEATURES,
@@ -246,3 +247,78 @@ def _paired_difference(left_folds, right_folds) -> dict[str, object]:
         "comparison": "all signals minus market and competition, same municipality folds",
         "difference": differences,
     }
+
+
+def compare_road_accessibility(labeled: pd.DataFrame) -> dict[str, object]:
+    """Score the current five features against those features plus road distance.
+
+    The comparison uses the same municipality folds and the same forest settings.
+    It does not replace the five-feature map model.
+    """
+    assert ROAD_DISTANCE_KM in labeled.columns, "labeled cells have no road distance"
+    assert set(CLASSIFIER_FEATURES) <= set(labeled.columns), "a current model feature is missing"
+    base_columns = list(CLASSIFIER_FEATURES)
+    road_columns = [*base_columns, ROAD_DISTANCE_KM]
+    folds, scheme = _group_splits(
+        labeled[base_columns],
+        labeled[PERFORMANCE_CLASS].astype(int),
+        labeled[MUNICIPALITY_COLUMN].astype(str),
+    )
+    model_a = _evaluate(labeled, base_columns, folds)
+    model_b = _evaluate(labeled, road_columns, folds)
+    return {
+        "final_model_changed": False,
+        "prespecified_features": base_columns,
+        "candidate_features": road_columns,
+        "validation": scheme,
+        "n_folds": len(folds),
+        "model_a_five_features": _compact(model_a),
+        "model_b_with_road_distance": _compact(model_b),
+        "model_b_minus_model_a": _paired_change(model_b["folds"], model_a["folds"]),
+        "reading": _road_reading(model_b["folds"], model_a["folds"]),
+    }
+
+
+def _compact(metrics: dict[str, object]) -> dict[str, object]:
+    return {
+        "metrics": {key: metrics["cv"][key] for key in CV_METRIC_KEYS},
+        "folds": metrics["folds"],
+    }
+
+
+def _paired_change(candidate_folds, current_folds) -> dict[str, object]:
+    differences = {}
+    for key in CV_METRIC_KEYS:
+        paired = []
+        for candidate, current in zip(candidate_folds, current_folds, strict=True):
+            if candidate[key] is None or current[key] is None:
+                continue
+            paired.append(float(candidate[key]) - float(current[key]))
+        differences[key] = _mean_std(paired)
+    return differences
+
+
+def _road_reading(candidate_folds, current_folds) -> str:
+    """Require a gain on every held-out fold before calling the addition an improvement."""
+    macro_gains = []
+    auc_gains = []
+    for candidate, current in zip(candidate_folds, current_folds, strict=True):
+        if candidate["macro_f1"] is None or current["macro_f1"] is None:
+            continue
+        if candidate["roc_auc_ovr_macro"] is None or current["roc_auc_ovr_macro"] is None:
+            continue
+        macro_gains.append(float(candidate["macro_f1"]) - float(current["macro_f1"]))
+        auc_gains.append(float(candidate["roc_auc_ovr_macro"]) - float(current["roc_auc_ovr_macro"]))
+    consistent = bool(macro_gains) and all(gain > 0 for gain in macro_gains) and all(gain > 0 for gain in auc_gains)
+    if consistent:
+        return (
+            "Adding distance to the nearest mapped road was associated with improved "
+            "out-of-sample classification performance under the municipality-grouped validation. "
+            "This is not evidence that road proximity causes Airbnb performance."
+        )
+    return (
+        "Adding distance to the nearest mapped road did not improve the model's held-out "
+        "classification performance under the tested configuration. "
+        "The average score was higher, but the gain was not present on every municipality fold. "
+        "The five-feature model was left unchanged."
+    )

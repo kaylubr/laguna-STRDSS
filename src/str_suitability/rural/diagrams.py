@@ -11,6 +11,36 @@ from str_suitability.rural.classify import CELL_ID_COLUMN
 DIAGRAM_PATH_NAME = "rural-cell-diagrams.md"
 
 
+def classifier_tree_trace(model, values: list[float]) -> dict:
+    """Walk the first tree for one square. op 0 is <=, 1 is >, 2 is a blank value."""
+    tree = model.estimators_[0].tree_
+    node = 0
+    steps = []
+    while tree.feature[node] >= 0:
+        feature_index = int(tree.feature[node])
+        threshold = float(tree.threshold[node])
+        measurement = float(values[feature_index])
+        shown_threshold = round(threshold, 4)
+        if np.isnan(measurement):
+            go_left = bool(tree.missing_go_to_left[node])
+            steps.append([feature_index, 2, shown_threshold, None, 1 if go_left else 0])
+            node = int(tree.children_left[node] if go_left else tree.children_right[node])
+            continue
+        go_left = measurement <= threshold
+        steps.append([
+            feature_index,
+            0 if go_left else 1,
+            shown_threshold,
+            round(measurement, 4),
+            1 if go_left else 0,
+        ])
+        node = int(tree.children_left[node] if go_left else tree.children_right[node])
+    counts = np.asarray(tree.value[node][0], dtype=float)
+    total = float(counts.sum()) or 1.0
+    leaf = [round(float(share), 3) for share in counts / total]
+    return {"steps": steps, "leaf": leaf}
+
+
 def classifier_tree_path(model, values: list[float]) -> list[str]:
     """Walk the first tree. A missing surrounding mean follows that tree's missing branch."""
     tree = model.estimators_[0].tree_

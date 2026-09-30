@@ -138,3 +138,19 @@ Output: data/processed/frontend/index.html
 From laguna-STRDSS:
   uv run python scripts/run_rural.py
   uv run python scripts/build_visualisation.py
+
+================================================================================
+5. ROAD DISTANCE, NOT IN THE MAP MODEL
+================================================================================
+
+data/processed/grid_road_distance.parquet is the straight-line distance from
+each of the 1,764 cell centroids to the nearest mapped road in
+data/laguna_roads.geojson. That file is an OpenStreetMap/Geofabrik extract.
+It is not DPWH data. Every mapped road is eligible, including local roads.
+Distances are metres in EPSG:32651, also stored in kilometres.
+Latest distances: minimum 0.08 m, median 146 m, mean 307 m, maximum 3.64 km.
+
+A five-fold comparison that adds this distance to the five current features
+raised mean macro F1 by 0.041 and mean ROC-AUC by 0.013. The gain was not on
+every held-out municipality, so the feature was not added to the map model.
+See docs/road-accessibility.md.

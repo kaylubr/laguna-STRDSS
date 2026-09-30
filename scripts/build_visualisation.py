@@ -4,13 +4,20 @@ import os
 from pathlib import Path
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 
 from str_suitability import config
+from str_suitability.features.road_distance import (
+    GRID_ROAD_DISTANCE_PATH,
+    LAGUNA_ROADS_PATH,
+    ROAD_DISTANCE_KM,
+)
 from str_suitability.modeling.location_classifier import (
     CLASSIFIER_FEATURES,
     CLASS_COLUMN,
     DISTANCE_COLUMN,
+    PERFORMANCE_CLASS,
     HIGH_PROBABILITY,
     LISTED_PLACES_WITHIN_RADIUS,
     LOW_PROBABILITY,
@@ -19,8 +26,11 @@ from str_suitability.modeling.location_classifier import (
     SURROUNDING_LISTINGS,
     SURROUNDING_OCCUPANCY,
     SURROUNDING_REVENUE,
+    _class_probabilities,
+    _forest,
 )
 from str_suitability.rural.classify import RURAL_CELL, UNCLASSIFIED_CELL, URBAN_CELL
+from str_suitability.rural.diagrams import classifier_tree_trace
 from str_suitability.rural.site_score import load_listed_tourist_places
 
 OUTPUT_DIR = config.PROCESSED_DIR / "frontend"
@@ -67,6 +77,7 @@ NUMERIC_FIELDS = (
     (SURROUNDING_LISTINGS, "Surrounding listing count"),
     (DISTANCE_COLUMN, "Distance to listed tourist place"),
     (LISTED_PLACES_WITHIN_RADIUS, "Listed places within 5 km"),
+    (ROAD_DISTANCE_KM, "Distance to nearest mapped road (km)"),
 )
 
 
@@ -115,12 +126,27 @@ def _optional_number(value, digits: int):
     return round(float(value), digits)
 
 
+def _tree_values(row) -> list[float]:
+    values = []
+    for column in CLASSIFIER_FEATURES:
+        measurement = getattr(row, column)
+        values.append(np.nan if pd.isna(measurement) else float(measurement))
+    return values
+
+
 def _feature_row(row) -> list[float | None]:
     values = []
     for column in CLASSIFIER_FEATURES:
         measurement = getattr(row, column)
         values.append(None if pd.isna(measurement) else round(float(measurement), 4))
     return values
+
+
+def _high_calls(matrix: list[list[int]], labels: tuple[str, ...]) -> tuple[int, int]:
+    high_index = list(labels).index("High")
+    matched = int(matrix[high_index][high_index])
+    made = int(sum(row[high_index] for row in matrix))
+    return matched, made
 
 
 def _importance_rows(summary: dict) -> list[dict]:
@@ -146,6 +172,33 @@ def _listing_dots() -> list[list]:
     ]
 
 
+def _road_lines() -> list[list[list[float]]]:
+    """Mapped roads inside the grid, simplified in metres. Not a model input."""
+    roads = gpd.read_file(LAGUNA_ROADS_PATH).to_crs(config.PROJECTED_CRS)
+    grid = gpd.read_parquet(GRID_PATH).to_crs(config.PROJECTED_CRS)
+    min_x, min_y, max_x, max_y = grid.total_bounds
+    pad = 500
+    roads = roads.cx[min_x - pad : max_x + pad, min_y - pad : max_y + pad]
+    roads = roads.loc[~roads.geometry.is_empty & roads.geometry.notna()].copy()
+    roads["geometry"] = roads.geometry.simplify(25)
+    geographic = roads.to_crs(config.GEOGRAPHIC_CRS)
+    lines = []
+    for geometry in geographic.geometry:
+        if geometry.geom_type == "LineString":
+            parts = [geometry]
+        elif geometry.geom_type == "MultiLineString":
+            parts = list(geometry.geoms)
+        else:
+            continue
+        for part in parts:
+            if part.is_empty:
+                continue
+            coords = [[round(lat, 5), round(lon, 5)] for lon, lat in part.coords]
+            if len(coords) >= 2:
+                lines.append(coords)
+    return lines
+
+
 def _place_dots() -> list[list]:
     places = load_listed_tourist_places(config.LISTED_TOURIST_PLACES_PATH)
     return [
@@ -158,10 +211,32 @@ def _place_dots() -> list[list]:
     ]
 
 
+def _map_forest():
+    """The same forest that colored the saved grid. A mismatch means the tree path is not that forest."""
+    labeled = pd.read_parquet(config.RURAL_PROCESSED_DIR / "location_training_cells.parquet")
+    model = _forest()
+    model.fit(labeled[list(CLASSIFIER_FEATURES)], labeled[PERFORMANCE_CLASS].astype(int))
+    return model
+
+
+def _assert_same_forest(model, cells: pd.DataFrame) -> None:
+    fresh = _class_probabilities(model, cells[list(CLASSIFIER_FEATURES)])
+    saved = cells[list((LOW_PROBABILITY, MODERATE_PROBABILITY, HIGH_PROBABILITY))].to_numpy()
+    assert np.allclose(saved, fresh), "the refit forest does not match the probabilities on the map"
+
+
 def build_payload() -> tuple[dict, dict]:
     cells = attach_rural_classification(gpd.read_parquet(GRID_PATH).to_crs(config.GEOGRAPHIC_CRS))
+    forest = _map_forest()
+    _assert_same_forest(forest, cells)
+    distances = pd.read_parquet(GRID_ROAD_DISTANCE_PATH)
+    distances["cell_id"] = distances["cell_id"].astype(str)
+    cells["cell_id"] = cells["cell_id"].astype(str)
+    cells = cells.merge(distances, on="cell_id", how="left", validate="one_to_one")
+    assert cells[ROAD_DISTANCE_KM].notna().all(), "a map cell has no distance to a mapped road"
     places = _place_dots()
     listings = _listing_dots()
+    roads = _road_lines()
     suitability_summary = json.loads(
         (config.RURAL_PROCESSED_DIR / "suitability_summary.json").read_text(encoding="utf-8")
     )
@@ -169,6 +244,10 @@ def build_payload() -> tuple[dict, dict]:
         (config.RURAL_PROCESSED_DIR / "model_summary.json").read_text(encoding="utf-8")
     )
     location_model = model_summary["models"]["location_success"]
+    high_matched, high_made = _high_calls(
+        location_model["test_metrics"]["confusion_matrix"],
+        SUITABILITY_CLASSES,
+    )
 
     cell_records = []
     multipart_cells = 0
@@ -193,6 +272,8 @@ def build_payload() -> tuple[dict, dict]:
                 "so": _optional_number(row.surrounding_mean_occupancy, 5),
                 "sl": None if pd.isna(row.surrounding_listing_count) else int(row.surrounding_listing_count),
                 "pc": None if pd.isna(row.listed_places_within_radius) else int(row.listed_places_within_radius),
+                "rd": _optional_number(row.road_distance_km, 3),
+                "tp": classifier_tree_trace(forest, _tree_values(row)),
                 "f": _feature_row(row),
             }
         )
@@ -208,13 +289,14 @@ def build_payload() -> tuple[dict, dict]:
         "cells": cell_records,
         "places": places,
         "listings": listings,
+        "roads": roads,
         "weightingMethod": suitability_summary["weighting_method"],
         "neighborhoodRadiusKm": suitability_summary["neighborhood_radius_km"],
         "performanceRule": suitability_summary["rule"],
-        "beatsBaseline": bool(location_model["macro_f1_above_majority_baseline"]),
         "testMacroF1": location_model["test_metrics"]["macro_f1"],
-        "testMacroF1Std": location_model["test_metrics"].get("cv", {}).get("macro_f1", {}).get("std"),
-        "baselineMacroF1": location_model["baseline_metrics"]["macro_f1"],
+        "stratifiedMacroF1": location_model["stratified_baseline_metrics"]["macro_f1"],
+        "highCallsMatched": high_matched,
+        "highCallsMade": high_made,
         "forest": {
             "features": [
                 {"key": column, "label": FEATURE_LABELS[column]} for column in CLASSIFIER_FEATURES
@@ -232,6 +314,7 @@ def build_payload() -> tuple[dict, dict]:
         "multipart_cells": multipart_cells,
         "places": len(places),
         "listings": len(listings),
+        "roads": len(roads),
         "rural_cells": int((cells["cell_class"] == RURAL_CELL).sum()),
         "urban_cells": int((cells["cell_class"] == URBAN_CELL).sum()),
         "unclassified_cells": int((cells["cell_class"] == UNCLASSIFIED_CELL).sum()),
@@ -274,8 +357,14 @@ def main() -> None:
                       "grid_unchanged": before == after,
                       "rural_grid_unchanged": rural_before == rural_after,
                       "html_kb": round(size_kb, 1)}, indent=2))
-    print("suitability class counts:", {label: sum(1 for c in payload["cells"] if c["rc"] == i)
-                                        for i, label in enumerate(SUITABILITY_CLASSES)})
+    rural = [cell for cell in payload["cells"] if cell["k"] == 0]
+    print("rural class counts:", {label: sum(1 for cell in rural if cell["rc"] == i)
+                                  for i, label in enumerate(SUITABILITY_CLASSES)})
+    print("rural market evidence:", {
+        "existing": sum(1 for cell in rural if (cell["sl"] or 0) > 0),
+        "none": sum(1 for cell in rural if not (cell["sl"] or 0) > 0),
+    })
+    print("high calls:", payload["highCallsMatched"], "of", payload["highCallsMade"])
 
 
 if __name__ == "__main__":
