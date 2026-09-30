@@ -26,6 +26,7 @@ from str_suitability.modeling.location_classifier import (
     label_performance,
     market_features,
     score_cells,
+    screen_grade,
     train_location_classifier,
 )
 from str_suitability.rural import pipeline as rural_pipeline
@@ -252,6 +253,32 @@ def test_experiments_keep_the_prespecified_model(monkeypatch):
     assert "std" in fitted["test_metrics"]["cv"]["macro_f1"]
     assert fitted["importance"]
     assert "importance_std" in fitted["importance"][0]
+
+
+def test_screen_grade_gives_half_credit_to_a_neighbor_and_none_to_an_opposite_end():
+    forest = [
+        [14, 38, 20],
+        [28, 65, 51],
+        [21, 26, 25],
+    ]
+    guess = [
+        [22, 27, 23],
+        [25, 85, 34],
+        [21, 37, 14],
+    ]
+    graded = screen_grade(forest)
+    frequency = screen_grade(guess)
+    assert graded["exact"] == 104
+    assert graded["adjacent"] == 143
+    assert graded["reversals"] == 41
+    assert graded["low_called_high"] == 20
+    assert graded["high_called_low"] == 21
+    assert graded["screen_credit"] == pytest.approx(175.5 / 288)
+    assert graded["strong_kept"] == 51
+    assert graded["true_high"] == 72
+    assert frequency["reversals"] == 44
+    assert frequency["screen_credit"] == pytest.approx(182.5 / 288)
+    assert frequency["strong_kept"] == 51
 
 
 def test_holdout_keeps_each_municipality_on_one_side():

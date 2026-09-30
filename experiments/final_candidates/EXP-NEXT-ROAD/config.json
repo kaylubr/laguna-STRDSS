@@ -1,0 +1,49 @@
+{
+  "experiment_id": "EXP-NEXT-ROAD",
+  "added_features": [
+    "road_density_3km"
+  ],
+  "features": [
+    "surrounding_mean_revenue",
+    "surrounding_mean_occupancy",
+    "surrounding_listing_count",
+    "listed_places_within_radius",
+    "distance_to_listed_tourist_place",
+    "road_density_3km"
+  ],
+  "paired_grouped": {
+    "accuracy": {
+      "mean": 0.06896686159844054,
+      "std": 0.0710288800644694,
+      "n": 5
+    },
+    "balanced_accuracy": {
+      "mean": 0.062274215607548956,
+      "std": 0.05869188963029669,
+      "n": 5
+    },
+    "macro_f1": {
+      "mean": 0.062295956556731626,
+      "std": 0.053266997512094405,
+      "n": 5
+    },
+    "weighted_f1": {
+      "mean": 0.0651631579227622,
+      "std": 0.055941098377287723,
+      "n": 5
+    },
+    "roc_auc_ovr_macro": {
+      "mean": 0.013407717865074076,
+      "std": 0.03786326943053952,
+      "n": 5
+    }
+  },
+  "paired_lomo_macro_f1": {
+    "mean": 0.055449492860271836,
+    "std": 0.3210645808404831,
+    "n": 28
+  },
+  "high_matched": 26,
+  "high_predicted": 88,
+  "both_views_improved": true
+}

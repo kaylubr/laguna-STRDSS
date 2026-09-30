@@ -18,14 +18,14 @@
       "fold": 1,
       "inner_scheme": "stratified_group_kfold_3",
       "chosen_params": {
-        "n_estimators": 200,
-        "max_depth": 10,
+        "n_estimators": 100,
+        "max_depth": null,
         "min_samples_split": 2,
         "min_samples_leaf": 1,
-        "max_features": "sqrt"
+        "max_features": 0.5
       },
-      "inner_score": 0.34300398398915855,
-      "outer_macro_f1": 0.4624811910984399,
+      "inner_score": 0.34820824353768637,
+      "outer_macro_f1": 0.43209876543209874,
       "outer_n": 54
     },
     {
@@ -71,7 +71,7 @@
       "outer_n": 52
     }
   ],
-  "macro_f1": 0.35724367165605564,
-  "macro_f1_std": 0.06898911445378637,
+  "macro_f1": 0.3511671865227874,
+  "macro_f1_std": 0.05783969843548289,
   "n_folds": 5
 }

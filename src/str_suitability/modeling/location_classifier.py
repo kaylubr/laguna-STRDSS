@@ -350,6 +350,9 @@ def _aggregate_fold_metrics(fold_metrics: list[dict[str, object]]) -> dict[str, 
         "macro_f1",
         "weighted_f1",
         "roc_auc_ovr_macro",
+        "screen_credit",
+        "reversal_rate",
+        "strong_kept_rate",
     )
     combined: dict[str, object] = {}
     cv: dict[str, object] = {}
@@ -366,6 +369,7 @@ def _aggregate_fold_metrics(fold_metrics: list[dict[str, object]]) -> dict[str, 
     ]
     matrix = np.sum([np.asarray(fold["confusion_matrix"], dtype=float) for fold in fold_metrics], axis=0)
     combined["confusion_matrix"] = matrix.astype(int).tolist()
+    combined["screen"] = screen_grade(combined["confusion_matrix"])
     return combined
 
 
@@ -446,6 +450,44 @@ def _outside_training_range(all_features: pd.DataFrame, train_features: pd.DataF
     return int(outside.sum())
 
 
+def screen_grade(matrix) -> dict[str, float | int | None]:
+    """Grade a Low / Moderate / High screen.
+
+    An exact class is full credit. A neighboring class is half credit, because a
+    Moderate call on a High square is still a place to look. Low called High, or
+    High called Low, is the miss that matters.
+    """
+    table = np.asarray(matrix, dtype=float)
+    if table.shape != (3, 3):
+        raise ValueError("the screen grade expects a 3 by 3 confusion matrix")
+    n = int(table.sum())
+    exact = int(np.trace(table))
+    adjacent = int(table[0, 1] + table[1, 0] + table[1, 2] + table[2, 1])
+    low_called_high = int(table[0, 2])
+    high_called_low = int(table[2, 0])
+    reversals = low_called_high + high_called_low
+    true_high = int(table[2].sum())
+    true_low = int(table[0].sum())
+    strong_kept = int(table[2, 1] + table[2, 2])
+    weak_not_sent_high = int(table[0, 0] + table[0, 1])
+    credit = exact + 0.5 * adjacent
+    return {
+        "n": n,
+        "exact": exact,
+        "adjacent": adjacent,
+        "reversals": reversals,
+        "low_called_high": low_called_high,
+        "high_called_low": high_called_low,
+        "screen_credit": (credit / n) if n else None,
+        "reversal_rate": (reversals / n) if n else None,
+        "strong_kept": strong_kept,
+        "true_high": true_high,
+        "strong_kept_rate": (strong_kept / true_high) if true_high else None,
+        "weak_not_sent_high": weak_not_sent_high,
+        "true_low": true_low,
+    }
+
+
 def _classification_metrics(observed, probabilities, predicted) -> dict[str, object]:
     observed_array = np.asarray(observed, dtype=int)
     predicted_array = np.asarray(predicted, dtype=int)
@@ -469,6 +511,8 @@ def _classification_metrics(observed, probabilities, predicted) -> dict[str, obj
                 per_class_auc[name] = None
             else:
                 per_class_auc[name] = float(roc_auc_score(binary, probabilities[:, index]))
+    matrix = confusion_matrix(observed_array, predicted_array, labels=labels).tolist()
+    screen = screen_grade(matrix)
     return {
         "accuracy": float(accuracy_score(observed_array, predicted_array)),
         "balanced_accuracy": float(balanced_accuracy_score(observed_array, predicted_array)),
@@ -478,6 +522,10 @@ def _classification_metrics(observed, probabilities, predicted) -> dict[str, obj
         "weighted_f1": float(f1_score(observed_array, predicted_array, average="weighted", zero_division=0)),
         "roc_auc_ovr_macro": roc_auc,
         "roc_auc_ovr_per_class": per_class_auc,
+        "screen_credit": screen["screen_credit"],
+        "reversal_rate": screen["reversal_rate"],
+        "strong_kept_rate": screen["strong_kept_rate"],
+        "screen": screen,
         "per_class": {
             name: {
                 "precision": float(precision[index]),
@@ -486,7 +534,7 @@ def _classification_metrics(observed, probabilities, predicted) -> dict[str, obj
             }
             for index, name in enumerate(names)
         },
-        "confusion_matrix": confusion_matrix(observed_array, predicted_array, labels=labels).tolist(),
+        "confusion_matrix": matrix,
         "class_counts": _count_classes(pd.Series(observed_array)),
         "n": int(len(observed_array)),
     }

@@ -14,24 +14,20 @@ from str_suitability.features.road_distance import (
     ROAD_DISTANCE_KM,
 )
 from str_suitability.modeling.location_classifier import (
-    CLASSIFIER_FEATURES,
-    CLASS_COLUMN,
     DISTANCE_COLUMN,
-    PERFORMANCE_CLASS,
-    HIGH_PROBABILITY,
     LISTED_PLACES_WITHIN_RADIUS,
-    LOW_PROBABILITY,
-    MODERATE_PROBABILITY,
-    NEAREST_PLACE_COLUMN,
     SURROUNDING_LISTINGS,
     SURROUNDING_OCCUPANCY,
-    SURROUNDING_REVENUE,
-    _class_probabilities,
-    _forest,
+    NEAREST_PLACE_COLUMN,
+)
+from str_suitability.modeling.presence import (
+    PRESENCE_CLASSES,
+    PRESENCE_FEATURES,
+    listed_places_for_training,
+    presence_forest,
 )
 from str_suitability.rural.classify import RURAL_CELL, UNCLASSIFIED_CELL, URBAN_CELL
 from str_suitability.rural.diagrams import classifier_tree_trace
-from str_suitability.rural.site_score import load_listed_tourist_places
 
 OUTPUT_DIR = config.PROCESSED_DIR / "frontend"
 GRID_PATH = config.PROCESSED_DIR / "grid_features.parquet"
@@ -44,41 +40,47 @@ MAP_COLUMNS = (
     "cell_id",
     "cell_class",
     "in_rural_analysis",
-    CLASS_COLUMN,
-    LOW_PROBABILITY,
-    MODERATE_PROBABILITY,
-    HIGH_PROBABILITY,
-    DISTANCE_COLUMN,
-    NEAREST_PLACE_COLUMN,
-    SURROUNDING_REVENUE,
     SURROUNDING_OCCUPANCY,
     SURROUNDING_LISTINGS,
-    LISTED_PLACES_WITHIN_RADIUS,
 )
 
 FEATURE_LABELS = {
-    SURROUNDING_REVENUE: "Surrounding mean revenue, excluding this cell",
-    SURROUNDING_OCCUPANCY: "Surrounding mean occupancy, excluding this cell",
-    SURROUNDING_LISTINGS: "Active listings within 5 km outside this cell",
     LISTED_PLACES_WITHIN_RADIUS: "Listed landscape places within 5 km",
     DISTANCE_COLUMN: "Distance to nearest listed landscape place",
+    ROAD_DISTANCE_KM: "Distance to nearest mapped road",
 }
 
-SUITABILITY_CLASSES = config.PERFORMANCE_CLASS_LABELS
-SUITABILITY_CLASS_COLORS = ("#d73027", "#fee08b", "#1a9850")
-SUITABILITY_CLASS_INDEX = {label: index for index, label in enumerate(SUITABILITY_CLASSES)}
+DISPLAY_CLASSES = ("Not the pattern", "Uncertain", "Looks listed")
+DISPLAY_COLORS = ("#d73027", "#fee08b", "#1a9850")
+CANDIDATE_CLASSES = (
+    "Lower candidate-pattern score",
+    "Middle candidate-pattern score",
+    "Higher candidate-pattern score",
+)
+CANDIDATE_NOTE = (
+    "A site-pattern screening score based on observable location characteristics. "
+    "It is not a forecast of revenue, occupancy, investment return, or regulatory suitability."
+)
+LOW_BAND = 0.40
+HIGH_BAND = 0.60
 
 NUMERIC_FIELDS = (
-    (HIGH_PROBABILITY, "P(High performance)"),
-    (MODERATE_PROBABILITY, "P(Moderate performance)"),
-    (LOW_PROBABILITY, "P(Low performance)"),
-    (SURROUNDING_REVENUE, "Surrounding mean revenue"),
-    (SURROUNDING_OCCUPANCY, "Surrounding mean occupancy"),
-    (SURROUNDING_LISTINGS, "Surrounding listing count"),
+    ("presence_probability", "P(looks listed)"),
+    (SURROUNDING_OCCUPANCY, "Nearby occupancy, flag only"),
+    (SURROUNDING_LISTINGS, "Nearby listings, flag only"),
     (DISTANCE_COLUMN, "Distance to listed tourist place"),
     (LISTED_PLACES_WITHIN_RADIUS, "Listed places within 5 km"),
     (ROAD_DISTANCE_KM, "Distance to nearest mapped road (km)"),
 )
+
+
+def _display_band(probability: float) -> int:
+    """Red below 0.40, yellow from 0.40 up to 0.60, green at 0.60 and above."""
+    if probability < LOW_BAND:
+        return 0
+    if probability < HIGH_BAND:
+        return 1
+    return 2
 
 
 def sha256(path: Path) -> str:
@@ -99,12 +101,6 @@ def attach_rural_classification(cells: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     assert len(merged) == cell_count, "the suitability grid changed the cell count"
     assert set(merged["cell_class"]) == set(CELL_CLASS_KEYS), (
         "a grid cell carries an unknown rural cell class"
-    )
-    assert merged[CLASS_COLUMN].isin(SUITABILITY_CLASSES).all(), (
-        "a grid cell carries no random-forest suitability class"
-    )
-    assert merged[list((LOW_PROBABILITY, MODERATE_PROBABILITY, HIGH_PROBABILITY))].notna().all().all(), (
-        "a grid cell is missing a class probability"
     )
     return gpd.GeoDataFrame(merged, geometry="geometry", crs=cells.crs)
 
@@ -128,7 +124,7 @@ def _optional_number(value, digits: int):
 
 def _tree_values(row) -> list[float]:
     values = []
-    for column in CLASSIFIER_FEATURES:
+    for column in PRESENCE_FEATURES:
         measurement = getattr(row, column)
         values.append(np.nan if pd.isna(measurement) else float(measurement))
     return values
@@ -136,27 +132,10 @@ def _tree_values(row) -> list[float]:
 
 def _feature_row(row) -> list[float | None]:
     values = []
-    for column in CLASSIFIER_FEATURES:
+    for column in PRESENCE_FEATURES:
         measurement = getattr(row, column)
         values.append(None if pd.isna(measurement) else round(float(measurement), 4))
     return values
-
-
-def _high_calls(matrix: list[list[int]], labels: tuple[str, ...]) -> tuple[int, int]:
-    high_index = list(labels).index("High")
-    matched = int(matrix[high_index][high_index])
-    made = int(sum(row[high_index] for row in matrix))
-    return matched, made
-
-
-def _importance_rows(summary: dict) -> list[dict]:
-    return [
-        {
-            "feature": row["feature"],
-            "importance": round(float(row["importance_mean"]), 6),
-        }
-        for row in summary["models"]["location_success"]["importance"]
-    ]
 
 
 def _listing_dots() -> list[list]:
@@ -200,7 +179,7 @@ def _road_lines() -> list[list[list[float]]]:
 
 
 def _place_dots() -> list[list]:
-    places = load_listed_tourist_places(config.LISTED_TOURIST_PLACES_PATH)
+    places, _report = listed_places_for_training(config.LISTED_TOURIST_PLACES_PATH)
     return [
         [
             round(float(row.longitude), 6),
@@ -212,42 +191,58 @@ def _place_dots() -> list[list]:
 
 
 def _map_forest():
-    """The same forest that colored the saved grid. A mismatch means the tree path is not that forest."""
-    labeled = pd.read_parquet(config.RURAL_PROCESSED_DIR / "location_training_cells.parquet")
-    model = _forest()
-    model.fit(labeled[list(CLASSIFIER_FEATURES)], labeled[PERFORMANCE_CLASS].astype(int))
+    """The presence forest saved for the map. A mismatch means the tree path is not that forest."""
+    labeled = pd.read_parquet(config.RURAL_PROCESSED_DIR / "presence_training.parquet")
+    model = presence_forest()
+    model.fit(labeled[list(PRESENCE_FEATURES)], labeled["presence"].astype(int))
     return model
 
 
 def _assert_same_forest(model, cells: pd.DataFrame) -> None:
-    fresh = _class_probabilities(model, cells[list(CLASSIFIER_FEATURES)])
-    saved = cells[list((LOW_PROBABILITY, MODERATE_PROBABILITY, HIGH_PROBABILITY))].to_numpy()
-    assert np.allclose(saved, fresh), "the refit forest does not match the probabilities on the map"
+    fresh = model.predict_proba(cells[list(PRESENCE_FEATURES)])
+    column = list(model.classes_).index(1)
+    assert np.allclose(cells["presence_probability"].to_numpy(), fresh[:, column]), (
+        "the refit forest does not match the probabilities on the map"
+    )
 
 
 def build_payload() -> tuple[dict, dict]:
     cells = attach_rural_classification(gpd.read_parquet(GRID_PATH).to_crs(config.GEOGRAPHIC_CRS))
-    forest = _map_forest()
-    _assert_same_forest(forest, cells)
+    presence = pd.read_parquet(config.RURAL_PROCESSED_DIR / "presence_scores.parquet")
+    presence["cell_id"] = presence["cell_id"].astype(str)
+    cells["cell_id"] = cells["cell_id"].astype(str)
+    overlap = [column for column in presence.columns if column != "cell_id" and column in cells.columns]
+    cells = cells.drop(columns=overlap).merge(presence, on="cell_id", how="left", validate="one_to_one")
+    assert cells["presence_class"].isin(PRESENCE_CLASSES).all(), "a square has no presence class"
+    assert cells["presence_probability"].notna().all(), "a square has no presence probability"
     distances = pd.read_parquet(GRID_ROAD_DISTANCE_PATH)
     distances["cell_id"] = distances["cell_id"].astype(str)
-    cells["cell_id"] = cells["cell_id"].astype(str)
     cells = cells.merge(distances, on="cell_id", how="left", validate="one_to_one")
     assert cells[ROAD_DISTANCE_KM].notna().all(), "a map cell has no distance to a mapped road"
+    candidate = pd.read_parquet(config.RURAL_PROCESSED_DIR / "site_candidate_v2_scores.parquet")
+    candidate["cell_id"] = candidate["cell_id"].astype(str)
+    assert set(candidate["model_name"]) == {"v2_logistic_regression"}
+    cells = cells.merge(
+        candidate[["cell_id", "candidate_pattern_score"]],
+        on="cell_id",
+        how="left",
+        validate="one_to_one",
+    )
+    rural_mask = cells["cell_class"] == RURAL_CELL
+    assert cells.loc[rural_mask, "candidate_pattern_score"].notna().all(), (
+        "a rural square has no candidate-pattern score"
+    )
+    forest = _map_forest()
+    _assert_same_forest(forest, cells)
     places = _place_dots()
     listings = _listing_dots()
     roads = _road_lines()
-    suitability_summary = json.loads(
-        (config.RURAL_PROCESSED_DIR / "suitability_summary.json").read_text(encoding="utf-8")
+    presence_report = json.loads(
+        (config.RURAL_PROCESSED_DIR / "presence_screen.json").read_text(encoding="utf-8")
     )
-    model_summary = json.loads(
-        (config.RURAL_PROCESSED_DIR / "model_summary.json").read_text(encoding="utf-8")
-    )
-    location_model = model_summary["models"]["location_success"]
-    high_matched, high_made = _high_calls(
-        location_model["test_metrics"]["confusion_matrix"],
-        SUITABILITY_CLASSES,
-    )
+    matrix = presence_report["forest"]["confusion_matrix"]
+    listed_kept = int(matrix[1][1])
+    listed_true = int(sum(matrix[1]))
 
     cell_records = []
     multipart_cells = 0
@@ -255,6 +250,7 @@ def build_payload() -> tuple[dict, dict]:
         parts = geometry_parts(row.geometry)
         if len(parts) > 1:
             multipart_cells += 1
+        probability = float(row.presence_probability)
         cell_records.append(
             {
                 "g": parts,
@@ -262,25 +258,35 @@ def build_payload() -> tuple[dict, dict]:
                 "m": None if pd.isna(row.municipality) else str(row.municipality),
                 "k": CELL_CLASS_KEYS[row.cell_class],
                 "inr": bool(row.in_rural_analysis),
-                "rc": SUITABILITY_CLASS_INDEX[row.rf_predicted_class],
-                "pl": _optional_number(row.rf_low_probability, 4),
-                "pm": _optional_number(row.rf_moderate_probability, 4),
-                "ph": _optional_number(row.rf_high_probability, 4),
+                "rc": _display_band(probability),
+                "fc": 0 if probability < 0.5 else 1,
+                "pl": round(1.0 - probability, 4),
+                "pp": round(probability, 4),
                 "ta": _optional_number(row.distance_to_listed_tourist_place, 3),
                 "tn": None if pd.isna(row.nearest_listed_tourist_place) else str(row.nearest_listed_tourist_place),
-                "sr": _optional_number(row.surrounding_mean_revenue, 2),
                 "so": _optional_number(row.surrounding_mean_occupancy, 5),
                 "sl": None if pd.isna(row.surrounding_listing_count) else int(row.surrounding_listing_count),
                 "pc": None if pd.isna(row.listed_places_within_radius) else int(row.listed_places_within_radius),
                 "rd": _optional_number(row.road_distance_km, 3),
+                "cs": _optional_number(row.candidate_pattern_score, 4),
+                "cc": None if pd.isna(row.candidate_pattern_score) else _display_band(float(row.candidate_pattern_score)),
                 "tp": classifier_tree_trace(forest, _tree_values(row)),
                 "f": _feature_row(row),
             }
         )
 
     payload = {
-        "ruralClasses": list(SUITABILITY_CLASSES),
-        "ruralClassColors": list(SUITABILITY_CLASS_COLORS),
+        "ruralClasses": list(DISPLAY_CLASSES),
+        "ruralClassColors": list(DISPLAY_COLORS),
+        "candidateClasses": list(CANDIDATE_CLASSES),
+        "candidateClassColors": list(DISPLAY_COLORS),
+        "candidateNote": CANDIDATE_NOTE,
+        "candidateAuc": json.loads(
+            (config.RURAL_PROCESSED_DIR / "site_candidate_v2_report.json").read_text(encoding="utf-8")
+        )["metrics"]["v2_logistic_regression"]["roc_auc"]["mean"],
+        "voteClasses": list(PRESENCE_CLASSES),
+        "voteColors": ["#d73027", "#1a9850"],
+        "treeLabels": ["Places", "Place km", "Road km"],
         "numericFields": [{"key": key, "label": label} for key, label in NUMERIC_FIELDS],
         "bounds": [
             [float(cells.total_bounds[1]), float(cells.total_bounds[0])],
@@ -290,19 +296,12 @@ def build_payload() -> tuple[dict, dict]:
         "places": places,
         "listings": listings,
         "roads": roads,
-        "weightingMethod": suitability_summary["weighting_method"],
-        "neighborhoodRadiusKm": suitability_summary["neighborhood_radius_km"],
-        "performanceRule": suitability_summary["rule"],
-        "testMacroF1": location_model["test_metrics"]["macro_f1"],
-        "stratifiedMacroF1": location_model["stratified_baseline_metrics"]["macro_f1"],
-        "highCallsMatched": high_matched,
-        "highCallsMade": high_made,
-        "forest": {
-            "features": [
-                {"key": column, "label": FEATURE_LABELS[column]} for column in CLASSIFIER_FEATURES
-            ],
-            "importance": _importance_rows(model_summary),
-        },
+        "neighborhoodRadiusKm": presence_report.get("places", {}).get("places_used"),
+        "presenceAuc": presence_report["forest"]["roc_auc"]["mean"],
+        "guessAuc": presence_report["stratified_baseline"]["roc_auc"]["mean"],
+        "listedKept": listed_kept,
+        "listedTrue": listed_true,
+        "placesUsed": presence_report["places"]["places_used"],
         "totalCells": int(len(cells)),
         "ruralCells": int((cells["cell_class"] == RURAL_CELL).sum()),
         "urbanCells": int((cells["cell_class"] == URBAN_CELL).sum()),
@@ -359,12 +358,14 @@ def main() -> None:
                       "html_kb": round(size_kb, 1)}, indent=2))
     rural = [cell for cell in payload["cells"] if cell["k"] == 0]
     print("rural class counts:", {label: sum(1 for cell in rural if cell["rc"] == i)
-                                  for i, label in enumerate(SUITABILITY_CLASSES)})
+                                  for i, label in enumerate(DISPLAY_CLASSES)})
+    print("candidate pattern counts:", {label: sum(1 for cell in rural if cell["cc"] == i)
+                                        for i, label in enumerate(CANDIDATE_CLASSES)})
     print("rural market evidence:", {
         "existing": sum(1 for cell in rural if (cell["sl"] or 0) > 0),
         "none": sum(1 for cell in rural if not (cell["sl"] or 0) > 0),
     })
-    print("high calls:", payload["highCallsMatched"], "of", payload["highCallsMade"])
+    print("listed kept:", payload["listedKept"], "of", payload["listedTrue"])
 
 
 if __name__ == "__main__":

@@ -38,20 +38,22 @@
     ],
     "max_depth": [
       null,
-      10
+      10,
+      20
     ],
     "min_samples_split": [
-      2
-    ],
-    "min_samples_leaf": [
-      1,
       2,
       5
     ],
+    "min_samples_leaf": [
+      1,
+      2
+    ],
     "max_features": [
-      "sqrt"
+      "sqrt",
+      0.5
     ]
   },
   "outer_scheme": "stratified_group_kfold_5",
-  "n_combinations": 18
+  "n_combinations": 72
 }

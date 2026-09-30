@@ -1,0 +1,55 @@
+{
+  "experiment_id": "EXP-NEXT-BOTH",
+  "added_features": [
+    "high_performer_pct_5km",
+    "moderate_performer_pct_5km",
+    "low_performer_pct_5km",
+    "road_density_3km"
+  ],
+  "features": [
+    "surrounding_mean_revenue",
+    "surrounding_mean_occupancy",
+    "surrounding_listing_count",
+    "listed_places_within_radius",
+    "distance_to_listed_tourist_place",
+    "high_performer_pct_5km",
+    "moderate_performer_pct_5km",
+    "low_performer_pct_5km",
+    "road_density_3km"
+  ],
+  "paired_grouped": {
+    "accuracy": {
+      "mean": 0.07205877942720049,
+      "std": 0.06759124410346203,
+      "n": 5
+    },
+    "balanced_accuracy": {
+      "mean": 0.07327240793907462,
+      "std": 0.05702101688989034,
+      "n": 5
+    },
+    "macro_f1": {
+      "mean": 0.0671920628636222,
+      "std": 0.05163619202787774,
+      "n": 5
+    },
+    "weighted_f1": {
+      "mean": 0.06453592538510133,
+      "std": 0.058225559101805074,
+      "n": 5
+    },
+    "roc_auc_ovr_macro": {
+      "mean": 0.013899944459441583,
+      "std": 0.05445625644212486,
+      "n": 5
+    }
+  },
+  "paired_lomo_macro_f1": {
+    "mean": 0.03481604166574333,
+    "std": 0.3875827596595996,
+    "n": 28
+  },
+  "high_matched": 34,
+  "high_predicted": 100,
+  "both_views_improved": true
+}

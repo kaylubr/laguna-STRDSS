@@ -86,10 +86,7 @@
 const payload = __PAYLOAD__;
 
 const FIELD_KEYS = {
-  rf_high_probability: 'ph',
-  rf_moderate_probability: 'pm',
-  rf_low_probability: 'pl',
-  surrounding_mean_revenue: 'sr',
+  presence_probability: 'pp',
   surrounding_mean_occupancy: 'so',
   surrounding_listing_count: 'sl',
   distance_to_listed_tourist_place: 'ta',
@@ -108,27 +105,32 @@ L.tileLayer(
 map.fitBounds(payload.bounds, { paddingTopLeft: [20, 20], paddingBottomRight: [290, 20] });
 
 const ruralCells = payload.cells.filter(cell => cell.k === 0);
-const classCounts = payload.ruralClasses.map((_, index) =>
-  ruralCells.filter(cell => cell.rc === index).length);
 const withMarket = ruralCells.filter(cell => cell.sl > 0).length;
 const noMarket = ruralCells.length - withMarket;
-const ruralLegend = payload.ruralClasses.map((label, index) =>
-  `<div class="row"><span class="swatch" style="background:${payload.ruralClassColors[index]}"></span>
-   <span>${label}</span><span class="num">${classCounts[index]}</span></div>`).join('');
+let mapMode = 'class';
+
+function legendMarkup(labels, colors, key) {
+  return labels.map((label, index) => {
+    const count = ruralCells.filter(cell => cell[key] === index).length;
+    return `<div class="row"><span class="swatch" style="background:${colors[index]}"></span>
+      <span>${label}</span><span class="num">${count}</span></div>`;
+  }).join('');
+}
 
 const info = L.control({ position: 'topright' });
 info.onAdd = () => {
   const div = L.DomUtil.create('div', 'panel');
   div.innerHTML = `
     <h1>Rural screener</h1>
-    <div class="muted">Weak screen · F1 ${Number(payload.testMacroF1).toFixed(3)} vs guess ${Number(payload.stratifiedMacroF1).toFixed(3)} · High ${payload.highCallsMatched}/${payload.highCallsMade}</div>
+    <div class="muted" id="screen-note">Listed pattern · AUC ${Number(payload.presenceAuc).toFixed(3)} vs guess ${Number(payload.guessAuc).toFixed(3)} · listed kept ${payload.listedKept}/${payload.listedTrue}</div>
     <select id="field">
-      <option value="class" selected>Highest probability</option>
+      <option value="class" selected>Baseline listed pattern</option>
+      <option value="candidate">Candidate site pattern</option>
     </select>
     <label class="row"><input id="roads" type="checkbox" checked> Roads</label>
     <div id="fieldnote" class="muted"></div>
-    <h2>Rural</h2>${ruralLegend}
-    <div class="row"><span class="swatch" style="background:#fff;border-style:dashed"></span><span>No market</span><span class="num">${noMarket}</span></div>
+    <h2>Rural</h2><div id="rural-legend">${legendMarkup(payload.ruralClasses, payload.ruralClassColors, 'rc')}</div>
+    <div class="row"><span class="swatch" style="background:#fff;border-style:dashed"></span><span>No other observed STR within 5 km</span><span class="num">${noMarket}</span></div>
     <h2>Not included</h2>
     <div class="row"><span class="swatch" style="background:#fff"></span><span>Urban</span><span class="num">${payload.urbanCells}</span></div>
     <div class="row"><span class="swatch" style="background:transparent"></span><span>Unclassified</span><span class="num">${payload.unclassifiedCells}</span></div>`;
@@ -168,21 +170,19 @@ function ramp(t) {
 
 function formatTreeValue(index, value) {
   if (value === null || value === undefined) return 'blank';
-  if (index === 1 || index === 4) return Number(value).toFixed(3);
-  if (index === 2 || index === 3) return Math.round(Number(value)).toLocaleString();
-  return Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 });
+  if (index === 0) return Math.round(Number(value)).toLocaleString();
+  return Number(value).toFixed(3);
 }
-
-const TREE_SHORT = ['Revenue', 'Occupancy', 'Listings', 'Places', 'Place km'];
 
 function treeDiagram(cell) {
   const trace = cell.tp;
   if (!trace || !trace.steps.length) return '';
-  const names = payload.ruralClasses;
-  const colors = payload.ruralClassColors;
+  const names = payload.voteClasses;
+  const colors = payload.voteColors;
+  const labels = payload.treeLabels;
   const leafIndex = trace.leaf.indexOf(Math.max(...trace.leaf));
   const steps = trace.steps.map(step => {
-    const feature = TREE_SHORT[step[0]];
+    const feature = labels[step[0]];
     const goLeft = step[4] === 1;
     const answer = goLeft ? 'Yes' : 'No';
     const other = goLeft ? 'No' : 'Yes';
@@ -197,10 +197,10 @@ function treeDiagram(cell) {
   const shares = trace.leaf.map((share, index) =>
     `<div><span>${names[index]}</span><b style="color:${colors[index]}">${share.toFixed(2)}</b></div>`
   ).join('');
-  const forestNote = cell.k === 0 && leafIndex !== cell.rc
-    ? `<div class="kicker" style="margin-top:8px">Forest vote · ${names[cell.rc]}</div>`
+  const forestNote = cell.k === 0 && leafIndex !== cell.fc
+    ? `<div class="kicker" style="margin-top:8px">Forest vote · ${names[cell.fc]}</div>`
     : '';
-  return `<div class="tree-head">Trained to vote <b>Low</b>, <b>Moderate</b>, or <b>High</b>. Tree 1 of 200.</div>
+  return `<div class="tree-head">Trained on scenic places and road distance. Tree 1 of 200.</div>
     ${steps}
     <div class="vote" style="border-color:${colors[leafIndex]}">
       <div class="kicker">This vote</div>
@@ -211,28 +211,37 @@ function treeDiagram(cell) {
 }
 
 function openForestModal(cell) {
-  const names = payload.ruralClasses;
-  const colors = payload.ruralClassColors;
+  const candidateMode = mapMode === 'candidate' && cell.cc !== null && cell.cc !== undefined;
+  const names = candidateMode ? payload.candidateClasses : payload.ruralClasses;
+  const colors = candidateMode ? payload.candidateClassColors : payload.ruralClassColors;
   const rural = cell.k === 0;
   const urban = cell.k === 1;
-  const title = urban ? 'Urban' : rural ? names[cell.rc] : 'Unclassified';
-  const fill = urban ? '#ffffff' : rural ? colors[cell.rc] : 'transparent';
-  const probs = [cell.pl, cell.pm, cell.ph];
-  const bars = names.map((name, index) => `
+  const band = candidateMode ? cell.cc : cell.rc;
+  const title = urban ? 'Urban' : rural ? names[band] : 'Unclassified';
+  const fill = urban ? '#ffffff' : rural ? colors[band] : 'transparent';
+  const voteNames = payload.voteClasses;
+  const voteColors = payload.voteColors;
+  const probs = [cell.pl, cell.pp];
+  const bars = candidateMode
+    ? `<div class="prob"><span>Candidate-pattern score</span>
+        <div class="track"><i style="width:${Math.round(cell.cs * 100)}%;background:${colors[band]}"></i></div>
+        <b>${Number(cell.cs).toFixed(2)}</b></div>`
+    : voteNames.map((name, index) => `
     <div class="prob"><span>${name}</span>
-      <div class="track"><i style="width:${Math.round(probs[index] * 100)}%;background:${colors[index]}"></i></div>
+      <div class="track"><i style="width:${Math.round(probs[index] * 100)}%;background:${voteColors[index]}"></i></div>
       <b>${Number(probs[index]).toFixed(2)}</b></div>`).join('');
   const chips = [
     urban ? 'Not included' : rural ? 'Rural' : 'Not included',
-    cell.sl > 0 ? 'Market' : 'No market'
+    cell.sl > 0 ? 'Other observed STR within 5 km · flag' : 'No other observed STR within 5 km'
   ].map(label => `<span class="chip">${label}</span>`).join('');
   const occupancy = cell.so === null || cell.so === undefined ? '—' : Number(cell.so).toFixed(2);
-  const revenue = cell.sr === null || cell.sr === undefined ? '—' : Math.round(cell.sr).toLocaleString();
   const line = urban
     ? 'White on the map. Not in the rural screen.'
-    : rural
-      ? `Weak screen. ${names[cell.rc] === 'High' ? `High matched ${payload.highCallsMatched} of ${payload.highCallsMade}.` : `F1 ${Number(payload.testMacroF1).toFixed(3)} vs guess ${Number(payload.stratifiedMacroF1).toFixed(3)}.`}`
-      : 'No color. Not in the rural screen.';
+    : candidateMode
+      ? payload.candidateNote
+      : rural
+        ? `Looks like places that already have an Airbnb, or not. Nearby occupancy and listing count are flags, not inputs. Listed squares kept ${payload.listedKept} of ${payload.listedTrue}.`
+        : 'No color. Not in the rural screen.';
   document.getElementById('forest-card').innerHTML = `
     <button class="close" type="button" id="forest-close" aria-label="Close">×</button>
     <div class="modal-main">
@@ -243,14 +252,13 @@ function openForestModal(cell) {
       <div class="stats">
         <div class="stat"><span>Places</span><b>${formatValue(cell.pc)}</b></div>
         <div class="stat"><span>Nearest place</span><b>${formatValue(cell.ta)} km</b></div>
-        <div class="stat"><span>Listings</span><b>${formatValue(cell.sl)}</b></div>
-        <div class="stat"><span>Revenue</span><b>${revenue}</b></div>
-        <div class="stat"><span>Occupancy</span><b>${occupancy}</b></div>
         <div class="stat"><span>Road</span><b>${formatValue(cell.rd)} km</b></div>
+        <div class="stat"><span>Occupancy · flag</span><b>${occupancy}</b></div>
+        <div class="stat"><span>Listings · flag</span><b>${formatValue(cell.sl)}</b></div>
       </div>
       <p class="line">${line}</p>
     </div>
-    <aside class="modal-tree">${treeDiagram(cell)}</aside>`;
+    <aside class="modal-tree">${candidateMode ? '<div class="kicker">The tree is the baseline screen. It does not produce the candidate-pattern score.</div>' : ''}${treeDiagram(cell)}</aside>`;
   document.getElementById('forest-modal').classList.add('open');
   document.getElementById('forest-close').addEventListener('click', closeForestModal);
 }
@@ -364,10 +372,14 @@ function applyScreen(shape, cell, fill, opacity) {
 }
 
 function styleCells(key) {
-  if (key === 'class') {
+  if (key === 'class' || key === 'candidate') {
+    const colors = key === 'candidate' ? payload.candidateClassColors : payload.ruralClassColors;
+    const bandKey = key === 'candidate' ? 'cc' : 'rc';
     cellShapes.forEach((shapes, i) => {
       const cell = payload.cells[i];
-      shapes.forEach(shape => applyScreen(shape, cell, payload.ruralClassColors[cell.rc], 0.8));
+      const band = cell[bandKey];
+      const fill = band === null || band === undefined ? '#d9d9d9' : colors[band];
+      shapes.forEach(shape => applyScreen(shape, cell, fill, 0.8));
     });
     return;
   }
@@ -383,17 +395,32 @@ function styleCells(key) {
 }
 
 select.addEventListener('change', event => {
-  styleCells(event.target.value);
-  const field = payload.numericFields.find(f => f.key === event.target.value);
+  mapMode = event.target.value;
+  styleCells(mapMode);
+  const field = payload.numericFields.find(f => f.key === mapMode);
   const note = document.getElementById('fieldnote');
-  if (event.target.value === 'class') {
+  const screen = document.getElementById('screen-note');
+  const legend = document.getElementById('rural-legend');
+  if (mapMode === 'class') {
     note.textContent = '';
-  } else if (field && field.key === 'road_distance_km') {
-    note.textContent = `${ranges[field.key][0].toLocaleString()}–${ranges[field.key][1].toLocaleString()} km · not in the color`;
-  } else if (field && field.key.startsWith('distance')) {
-    note.textContent = `${ranges[field.key][0].toLocaleString()}–${ranges[field.key][1].toLocaleString()}`;
-  } else if (field) {
-    note.textContent = `range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`;
+    screen.textContent = `Listed pattern · AUC ${Number(payload.presenceAuc).toFixed(3)} vs guess ${Number(payload.guessAuc).toFixed(3)} · listed kept ${payload.listedKept}/${payload.listedTrue}`;
+    legend.innerHTML = legendMarkup(payload.ruralClasses, payload.ruralClassColors, 'rc');
+  } else if (mapMode === 'candidate') {
+    note.innerHTML = `<strong>${payload.candidateNote}</strong>`;
+    screen.textContent = `Candidate site pattern · AUC ${Number(payload.candidateAuc).toFixed(3)}`;
+    legend.innerHTML = legendMarkup(payload.candidateClasses, payload.candidateClassColors, 'cc');
+  } else {
+    screen.textContent = `Listed pattern · AUC ${Number(payload.presenceAuc).toFixed(3)} vs guess ${Number(payload.guessAuc).toFixed(3)} · listed kept ${payload.listedKept}/${payload.listedTrue}`;
+    legend.innerHTML = legendMarkup(payload.ruralClasses, payload.ruralClassColors, 'rc');
+    if (field && (field.key === 'surrounding_mean_occupancy' || field.key === 'surrounding_listing_count')) {
+      note.textContent = 'Flag only. Not used to color the square.';
+    } else if (field && field.key === 'road_distance_km') {
+      note.textContent = `${ranges[field.key][0].toLocaleString()}–${ranges[field.key][1].toLocaleString()} km · not in the color`;
+    } else if (field && field.key.startsWith('distance')) {
+      note.textContent = `${ranges[field.key][0].toLocaleString()}–${ranges[field.key][1].toLocaleString()}`;
+    } else if (field) {
+      note.textContent = `range ${ranges[field.key][0].toLocaleString()} – ${ranges[field.key][1].toLocaleString()}`;
+    }
   }
 });
 
