@@ -1,0 +1,1060 @@
+{
+  "grouped_cv": {
+    "scheme": "reused_folds",
+    "n_folds": 5,
+    "accuracy": 0.36834307992202736,
+    "balanced_accuracy": 0.3327123460456794,
+    "macro_precision": 0.31744387432064103,
+    "macro_recall": 0.3327123460456794,
+    "macro_f1": 0.31307506511968985,
+    "weighted_f1": 0.35690398734708545,
+    "roc_auc_ovr_macro": 0.5285667157144671,
+    "cv": {
+      "accuracy": {
+        "mean": 0.36834307992202736,
+        "std": 0.040889102081076156,
+        "n": 5
+      },
+      "balanced_accuracy": {
+        "mean": 0.3327123460456794,
+        "std": 0.06990188540801198,
+        "n": 5
+      },
+      "macro_precision": {
+        "mean": 0.31744387432064103,
+        "std": 0.0808587465939784,
+        "n": 5
+      },
+      "macro_recall": {
+        "mean": 0.3327123460456794,
+        "std": 0.06990188540801198,
+        "n": 5
+      },
+      "macro_f1": {
+        "mean": 0.31307506511968985,
+        "std": 0.06839531445504357,
+        "n": 5
+      },
+      "weighted_f1": {
+        "mean": 0.35690398734708545,
+        "std": 0.05661118062612103,
+        "n": 5
+      },
+      "roc_auc_ovr_macro": {
+        "mean": 0.5285667157144671,
+        "std": 0.08442262402157913,
+        "n": 5
+      }
+    },
+    "n": 288,
+    "confusion_matrix": [
+      [
+        14,
+        37,
+        21
+      ],
+      [
+        27,
+        66,
+        51
+      ],
+      [
+        19,
+        27,
+        26
+      ]
+    ]
+  },
+  "leave_one_municipality_out": {
+    "scheme": "leave_one_municipality_out",
+    "n_folds": 28,
+    "accuracy": 0.398315431619003,
+    "balanced_accuracy": 0.3942120816858212,
+    "macro_precision": 0.2514066099592415,
+    "macro_recall": 0.3182200181937577,
+    "macro_f1": 0.3125079020810998,
+    "weighted_f1": 0.36357579150397584,
+    "roc_auc_ovr_macro": 0.49464573511830245,
+    "cv": {
+      "accuracy": {
+        "mean": 0.398315431619003,
+        "std": 0.24780242760573726,
+        "n": 28
+      },
+      "balanced_accuracy": {
+        "mean": 0.3942120816858212,
+        "std": 0.24842786110407075,
+        "n": 28
+      },
+      "macro_precision": {
+        "mean": 0.2514066099592415,
+        "std": 0.16065643250118097,
+        "n": 28
+      },
+      "macro_recall": {
+        "mean": 0.3182200181937577,
+        "std": 0.17877669969013482,
+        "n": 28
+      },
+      "macro_f1": {
+        "mean": 0.3125079020810998,
+        "std": 0.2266356341548266,
+        "n": 28
+      },
+      "weighted_f1": {
+        "mean": 0.36357579150397584,
+        "std": 0.2564498848106227,
+        "n": 28
+      },
+      "roc_auc_ovr_macro": {
+        "mean": 0.49464573511830245,
+        "std": 0.1721941754423462,
+        "n": 17
+      }
+    },
+    "n": 288,
+    "confusion_matrix": [
+      [
+        17,
+        34,
+        21
+      ],
+      [
+        28,
+        74,
+        42
+      ],
+      [
+        14,
+        31,
+        27
+      ]
+    ]
+  },
+  "per_municipality": [
+    {
+      "accuracy": 0.5,
+      "balanced_accuracy": 0.5,
+      "macro_precision": 0.16666666666666666,
+      "macro_recall": 0.3333333333333333,
+      "macro_f1": 0.3333333333333333,
+      "weighted_f1": 0.3333333333333333,
+      "roc_auc_ovr_macro": NaN,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 2,
+      "class_counts": {
+        "Low": 0,
+        "Moderate": 1,
+        "High": 1
+      },
+      "municipality": "Alaminos"
+    },
+    {
+      "accuracy": 0.75,
+      "balanced_accuracy": 0.6666666666666667,
+      "macro_precision": 0.4444444444444445,
+      "macro_recall": 0.4444444444444445,
+      "macro_f1": 0.6666666666666667,
+      "weighted_f1": 0.75,
+      "roc_auc_ovr_macro": NaN,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.8333333333333334,
+          "recall": 0.8333333333333334,
+          "f1": 0.8333333333333334
+        },
+        "High": {
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5
+        }
+      },
+      "n": 8,
+      "class_counts": {
+        "Low": 0,
+        "Moderate": 6,
+        "High": 2
+      },
+      "municipality": "Bay"
+    },
+    {
+      "accuracy": 0.1875,
+      "balanced_accuracy": 0.3333333333333333,
+      "macro_precision": 0.16363636363636366,
+      "macro_recall": 0.3333333333333333,
+      "macro_f1": 0.19943019943019943,
+      "weighted_f1": 0.13034188034188032,
+      "roc_auc_ovr_macro": 0.5890873015873016,
+      "per_class": {
+        "Low": {
+          "precision": 0.4,
+          "recall": 0.5,
+          "f1": 0.4444444444444444
+        },
+        "Moderate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "High": {
+          "precision": 0.09090909090909091,
+          "recall": 0.5,
+          "f1": 0.15384615384615385
+        }
+      },
+      "n": 16,
+      "class_counts": {
+        "Low": 4,
+        "Moderate": 10,
+        "High": 2
+      },
+      "municipality": "Bi\u00f1an"
+    },
+    {
+      "accuracy": 0.125,
+      "balanced_accuracy": 0.1111111111111111,
+      "macro_precision": 0.07407407407407407,
+      "macro_recall": 0.1111111111111111,
+      "macro_f1": 0.08888888888888889,
+      "weighted_f1": 0.1,
+      "roc_auc_ovr_macro": 0.42116402116402113,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.2222222222222222,
+          "recall": 0.3333333333333333,
+          "f1": 0.26666666666666666
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 16,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 6,
+        "High": 9
+      },
+      "municipality": "Cabuyao"
+    },
+    {
+      "accuracy": 0.45454545454545453,
+      "balanced_accuracy": 0.40563725490196073,
+      "macro_precision": 0.31746031746031744,
+      "macro_recall": 0.40563725490196073,
+      "macro_f1": 0.3560929350403035,
+      "weighted_f1": 0.39923057028320186,
+      "roc_auc_ovr_macro": 0.5719579479327698,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.42857142857142855,
+          "recall": 0.5294117647058824,
+          "f1": 0.47368421052631576
+        },
+        "High": {
+          "precision": 0.5238095238095238,
+          "recall": 0.6875,
+          "f1": 0.5945945945945946
+        }
+      },
+      "n": 44,
+      "class_counts": {
+        "Low": 11,
+        "Moderate": 17,
+        "High": 16
+      },
+      "municipality": "Calamba"
+    },
+    {
+      "accuracy": 0.5,
+      "balanced_accuracy": 0.5,
+      "macro_precision": 0.3333333333333333,
+      "macro_recall": 0.16666666666666666,
+      "macro_f1": 0.3333333333333333,
+      "weighted_f1": 0.6666666666666666,
+      "roc_auc_ovr_macro": null,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 1.0,
+          "recall": 0.5,
+          "f1": 0.6666666666666666
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 4,
+      "class_counts": {
+        "Low": 0,
+        "Moderate": 4,
+        "High": 0
+      },
+      "municipality": "Calauan"
+    },
+    {
+      "accuracy": 0.28,
+      "balanced_accuracy": 0.22424242424242424,
+      "macro_precision": 0.2878787878787879,
+      "macro_recall": 0.22424242424242424,
+      "macro_f1": 0.24463118580765641,
+      "weighted_f1": 0.3076750700280112,
+      "roc_auc_ovr_macro": 0.40797979797979805,
+      "per_class": {
+        "Low": {
+          "precision": 0.5,
+          "recall": 0.2727272727272727,
+          "f1": 0.35294117647058826
+        },
+        "Moderate": {
+          "precision": 0.36363636363636365,
+          "recall": 0.4,
+          "f1": 0.38095238095238093
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 25,
+      "class_counts": {
+        "Low": 11,
+        "Moderate": 10,
+        "High": 4
+      },
+      "municipality": "Cavinti"
+    },
+    {
+      "accuracy": 0.5,
+      "balanced_accuracy": 0.5,
+      "macro_precision": 0.16666666666666666,
+      "macro_recall": 0.3333333333333333,
+      "macro_f1": 0.3333333333333333,
+      "weighted_f1": 0.3333333333333333,
+      "roc_auc_ovr_macro": NaN,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 2,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 1,
+        "High": 0
+      },
+      "municipality": "Kalayaan"
+    },
+    {
+      "accuracy": 0.5,
+      "balanced_accuracy": 0.4166666666666667,
+      "macro_precision": 0.3111111111111111,
+      "macro_recall": 0.4166666666666667,
+      "macro_f1": 0.35555555555555557,
+      "weighted_f1": 0.43333333333333335,
+      "roc_auc_ovr_macro": 0.6041666666666666,
+      "per_class": {
+        "Low": {
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "f1": 0.4
+        },
+        "Moderate": {
+          "precision": 0.6,
+          "recall": 0.75,
+          "f1": 0.6666666666666666
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 8,
+      "class_counts": {
+        "Low": 2,
+        "Moderate": 4,
+        "High": 2
+      },
+      "municipality": "Liliw"
+    },
+    {
+      "accuracy": 0.5555555555555556,
+      "balanced_accuracy": 0.48611111111111116,
+      "macro_precision": 0.3896103896103896,
+      "macro_recall": 0.48611111111111116,
+      "macro_f1": 0.41830065359477125,
+      "weighted_f1": 0.4923747276688453,
+      "roc_auc_ovr_macro": 0.6556878306878308,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.7142857142857143,
+          "recall": 0.625,
+          "f1": 0.6666666666666666
+        },
+        "High": {
+          "precision": 0.45454545454545453,
+          "recall": 0.8333333333333334,
+          "f1": 0.5882352941176471
+        }
+      },
+      "n": 18,
+      "class_counts": {
+        "Low": 4,
+        "Moderate": 8,
+        "High": 6
+      },
+      "municipality": "Los Ba\u00f1os"
+    },
+    {
+      "accuracy": 0.4,
+      "balanced_accuracy": 0.3333333333333333,
+      "macro_precision": 0.27777777777777773,
+      "macro_recall": 0.3333333333333333,
+      "macro_f1": 0.3,
+      "weighted_f1": 0.36,
+      "roc_auc_ovr_macro": 0.2777777777777778,
+      "per_class": {
+        "Low": {
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5
+        },
+        "Moderate": {
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "f1": 0.4
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 5,
+      "class_counts": {
+        "Low": 2,
+        "Moderate": 2,
+        "High": 1
+      },
+      "municipality": "Luisiana"
+    },
+    {
+      "accuracy": 0.2857142857142857,
+      "balanced_accuracy": 0.4444444444444444,
+      "macro_precision": 0.2333333333333333,
+      "macro_recall": 0.4444444444444444,
+      "macro_f1": 0.24444444444444446,
+      "weighted_f1": 0.21904761904761907,
+      "roc_auc_ovr_macro": 0.47222222222222227,
+      "per_class": {
+        "Low": {
+          "precision": 0.2,
+          "recall": 1.0,
+          "f1": 0.3333333333333333
+        },
+        "Moderate": {
+          "precision": 0.5,
+          "recall": 0.3333333333333333,
+          "f1": 0.4
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 7,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 3,
+        "High": 3
+      },
+      "municipality": "Lumban"
+    },
+    {
+      "accuracy": 0.2,
+      "balanced_accuracy": 0.3333333333333333,
+      "macro_precision": 0.08333333333333333,
+      "macro_recall": 0.3333333333333333,
+      "macro_f1": 0.13333333333333333,
+      "weighted_f1": 0.08,
+      "roc_auc_ovr_macro": 0.638888888888889,
+      "per_class": {
+        "Low": {
+          "precision": 0.25,
+          "recall": 1.0,
+          "f1": 0.4
+        },
+        "Moderate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 5,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 2,
+        "High": 2
+      },
+      "municipality": "Mabitac"
+    },
+    {
+      "accuracy": 0.25,
+      "balanced_accuracy": 0.16666666666666666,
+      "macro_precision": 0.16666666666666666,
+      "macro_recall": 0.1111111111111111,
+      "macro_f1": 0.13333333333333333,
+      "weighted_f1": 0.30000000000000004,
+      "roc_auc_ovr_macro": NaN,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.5,
+          "recall": 0.3333333333333333,
+          "f1": 0.4
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 4,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 3,
+        "High": 0
+      },
+      "municipality": "Magdalena"
+    },
+    {
+      "accuracy": 0.6666666666666666,
+      "balanced_accuracy": 0.75,
+      "macro_precision": 0.5,
+      "macro_recall": 0.5,
+      "macro_f1": 0.6666666666666666,
+      "weighted_f1": 0.6666666666666666,
+      "roc_auc_ovr_macro": NaN,
+      "per_class": {
+        "Low": {
+          "precision": 1.0,
+          "recall": 0.5,
+          "f1": 0.6666666666666666
+        },
+        "Moderate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "High": {
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666
+        }
+      },
+      "n": 3,
+      "class_counts": {
+        "Low": 2,
+        "Moderate": 0,
+        "High": 1
+      },
+      "municipality": "Majayjay"
+    },
+    {
+      "accuracy": 0.6666666666666666,
+      "balanced_accuracy": 0.6666666666666666,
+      "macro_precision": 0.5,
+      "macro_recall": 0.6666666666666666,
+      "macro_f1": 0.5555555555555555,
+      "weighted_f1": 0.5555555555555555,
+      "roc_auc_ovr_macro": 0.6666666666666666,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        },
+        "High": {
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666
+        }
+      },
+      "n": 3,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 1,
+        "High": 1
+      },
+      "municipality": "Nagcarlan"
+    },
+    {
+      "accuracy": 0.0,
+      "balanced_accuracy": 0.0,
+      "macro_precision": 0.0,
+      "macro_recall": 0.0,
+      "macro_f1": 0.0,
+      "weighted_f1": 0.0,
+      "roc_auc_ovr_macro": null,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 1,
+      "class_counts": {
+        "Low": 0,
+        "Moderate": 1,
+        "High": 0
+      },
+      "municipality": "Paete"
+    },
+    {
+      "accuracy": 0.375,
+      "balanced_accuracy": 0.38888888888888884,
+      "macro_precision": 0.24444444444444446,
+      "macro_recall": 0.38888888888888884,
+      "macro_f1": 0.3,
+      "weighted_f1": 0.2875,
+      "roc_auc_ovr_macro": 0.6666666666666666,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.4,
+          "recall": 0.6666666666666666,
+          "f1": 0.5
+        },
+        "High": {
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "f1": 0.4
+        }
+      },
+      "n": 8,
+      "class_counts": {
+        "Low": 3,
+        "Moderate": 3,
+        "High": 2
+      },
+      "municipality": "Pagsanjan"
+    },
+    {
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "macro_precision": 0.3333333333333333,
+      "macro_recall": 0.3333333333333333,
+      "macro_f1": 1.0,
+      "weighted_f1": 1.0,
+      "roc_auc_ovr_macro": null,
+      "per_class": {
+        "Low": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        },
+        "Moderate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 1,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 0,
+        "High": 0
+      },
+      "municipality": "Pakil"
+    },
+    {
+      "accuracy": 0.6666666666666666,
+      "balanced_accuracy": 0.8,
+      "macro_precision": 0.5,
+      "macro_recall": 0.5333333333333333,
+      "macro_f1": 0.47222222222222215,
+      "weighted_f1": 0.7361111111111112,
+      "roc_auc_ovr_macro": NaN,
+      "per_class": {
+        "Low": {
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666
+        },
+        "Moderate": {
+          "precision": 1.0,
+          "recall": 0.6,
+          "f1": 0.75
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 6,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 5,
+        "High": 0
+      },
+      "municipality": "Pila"
+    },
+    {
+      "accuracy": 0.0,
+      "balanced_accuracy": 0.0,
+      "macro_precision": 0.0,
+      "macro_recall": 0.0,
+      "macro_f1": 0.0,
+      "weighted_f1": 0.0,
+      "roc_auc_ovr_macro": null,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 2,
+      "class_counts": {
+        "Low": 0,
+        "Moderate": 0,
+        "High": 2
+      },
+      "municipality": "Rizal"
+    },
+    {
+      "accuracy": 0.4864864864864865,
+      "balanced_accuracy": 0.4413919413919414,
+      "macro_precision": 0.4598997493734336,
+      "macro_recall": 0.4413919413919414,
+      "macro_f1": 0.4026936026936027,
+      "weighted_f1": 0.5300573300573301,
+      "roc_auc_ovr_macro": 0.5743478743478744,
+      "per_class": {
+        "Low": {
+          "precision": 0.5,
+          "recall": 0.2857142857142857,
+          "f1": 0.36363636363636365
+        },
+        "Moderate": {
+          "precision": 0.7368421052631579,
+          "recall": 0.5384615384615384,
+          "f1": 0.6222222222222222
+        },
+        "High": {
+          "precision": 0.14285714285714285,
+          "recall": 0.5,
+          "f1": 0.2222222222222222
+        }
+      },
+      "n": 37,
+      "class_counts": {
+        "Low": 7,
+        "Moderate": 26,
+        "High": 4
+      },
+      "municipality": "San Pablo"
+    },
+    {
+      "accuracy": 0.5,
+      "balanced_accuracy": 0.5,
+      "macro_precision": 0.3333333333333333,
+      "macro_recall": 0.5,
+      "macro_f1": 0.35714285714285715,
+      "weighted_f1": 0.46428571428571425,
+      "roc_auc_ovr_macro": 0.525,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.6666666666666666,
+          "recall": 0.5,
+          "f1": 0.5714285714285714
+        },
+        "High": {
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "f1": 0.5
+        }
+      },
+      "n": 6,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 4,
+        "High": 1
+      },
+      "municipality": "San Pedro"
+    },
+    {
+      "accuracy": 0.5454545454545454,
+      "balanced_accuracy": 0.3333333333333333,
+      "macro_precision": 0.19999999999999998,
+      "macro_recall": 0.3333333333333333,
+      "macro_f1": 0.25,
+      "weighted_f1": 0.4090909090909091,
+      "roc_auc_ovr_macro": 0.41944444444444445,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.6,
+          "recall": 1.0,
+          "f1": 0.75
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 11,
+      "class_counts": {
+        "Low": 3,
+        "Moderate": 6,
+        "High": 2
+      },
+      "municipality": "Santa Cruz"
+    },
+    {
+      "accuracy": 0.3333333333333333,
+      "balanced_accuracy": 0.3333333333333333,
+      "macro_precision": 0.14285714285714285,
+      "macro_recall": 0.3333333333333333,
+      "macro_f1": 0.19999999999999998,
+      "weighted_f1": 0.19999999999999998,
+      "roc_auc_ovr_macro": 0.35648148148148145,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.42857142857142855,
+          "recall": 1.0,
+          "f1": 0.6
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 9,
+      "class_counts": {
+        "Low": 5,
+        "Moderate": 3,
+        "High": 1
+      },
+      "municipality": "Santa Maria"
+    },
+    {
+      "accuracy": 0.42424242424242425,
+      "balanced_accuracy": 0.40277777777777773,
+      "macro_precision": 0.40952380952380957,
+      "macro_recall": 0.40277777777777773,
+      "macro_f1": 0.4052631578947368,
+      "weighted_f1": 0.42551834130781496,
+      "roc_auc_ovr_macro": 0.561437908496732,
+      "per_class": {
+        "Low": {
+          "precision": 0.42857142857142855,
+          "recall": 0.375,
+          "f1": 0.4
+        },
+        "Moderate": {
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5
+        },
+        "High": {
+          "precision": 0.3,
+          "recall": 0.3333333333333333,
+          "f1": 0.3157894736842105
+        }
+      },
+      "n": 33,
+      "class_counts": {
+        "Low": 8,
+        "Moderate": 16,
+        "High": 9
+      },
+      "municipality": "Santa Rosa"
+    },
+    {
+      "accuracy": 0.0,
+      "balanced_accuracy": 0.0,
+      "macro_precision": 0.0,
+      "macro_recall": 0.0,
+      "macro_f1": 0.0,
+      "weighted_f1": 0.0,
+      "roc_auc_ovr_macro": null,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 1,
+      "class_counts": {
+        "Low": 0,
+        "Moderate": 1,
+        "High": 0
+      },
+      "municipality": "Siniloan"
+    },
+    {
+      "accuracy": 0.0,
+      "balanced_accuracy": 0.0,
+      "macro_precision": 0.0,
+      "macro_recall": 0.0,
+      "macro_f1": 0.0,
+      "weighted_f1": 0.0,
+      "roc_auc_ovr_macro": 0.0,
+      "per_class": {
+        "Low": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "Moderate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "High": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "n": 3,
+      "class_counts": {
+        "Low": 1,
+        "Moderate": 1,
+        "High": 1
+      },
+      "municipality": "Victoria"
+    }
+  ]
+}

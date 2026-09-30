@@ -1,0 +1,11 @@
+[
+  "surrounding_mean_revenue",
+  "surrounding_mean_occupancy",
+  "surrounding_listing_count",
+  "listed_places_within_radius",
+  "distance_to_listed_tourist_place",
+  "falls_count_5km",
+  "mountains_count_5km",
+  "lakes_ponds_count_5km",
+  "rivers_landscape_count_5km"
+]

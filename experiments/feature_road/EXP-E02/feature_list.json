@@ -1,0 +1,9 @@
+[
+  "surrounding_mean_revenue",
+  "surrounding_mean_occupancy",
+  "surrounding_listing_count",
+  "listed_places_within_radius",
+  "distance_to_listed_tourist_place",
+  "nearest_major_road_distance_km",
+  "nearest_local_road_distance_km"
+]

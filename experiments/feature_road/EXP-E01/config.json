@@ -1,0 +1,27 @@
+{
+  "experiment_id": "EXP-E01",
+  "question": "Independent replication: does straight-line distance to the nearest mapped road add information? (The production model already tested this in compare_road_accessibility and did not adopt it; this is a separate re-test.)",
+  "baseline_features": [
+    "surrounding_mean_revenue",
+    "surrounding_mean_occupancy",
+    "surrounding_listing_count",
+    "listed_places_within_radius",
+    "distance_to_listed_tourist_place"
+  ],
+  "added_features": [
+    "nearest_road_distance_km"
+  ],
+  "all_features": [
+    "surrounding_mean_revenue",
+    "surrounding_mean_occupancy",
+    "surrounding_listing_count",
+    "listed_places_within_radius",
+    "distance_to_listed_tourist_place",
+    "nearest_road_distance_km"
+  ],
+  "model": "random_forest",
+  "n_labeled_cells": 288,
+  "n_municipalities": 28,
+  "validation_scheme_grouped_cv": "reused_folds",
+  "validation_scheme_lomo": "leave_one_municipality_out"
+}
