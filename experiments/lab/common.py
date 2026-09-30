@@ -10,10 +10,19 @@ from __future__ import annotations
 
 import csv
 import json
+import warnings
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+# LOMO folds are sometimes tiny (a municipality with 2-3 labeled cells) and can be
+# single-class. sklearn warns about that on every such fold; the resulting None/0
+# metrics are already handled deliberately in classification_metrics, so these
+# warnings are expected noise, not a sign of a bug.
+warnings.filterwarnings("ignore", message="Only one class is present in y_true")
+warnings.filterwarnings("ignore", message="y_pred contains classes not in y_true")
+warnings.filterwarnings("ignore", message="A single label was found in 'y_true' and 'y_pred'")
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -31,6 +40,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 
 RANDOM_STATE = 42
@@ -168,8 +178,8 @@ def make_model(name: str, **overrides):
         model = RandomForestClassifier(random_state=RANDOM_STATE, class_weight="balanced", n_jobs=-1, **params)
         return model, False
     if name == "logistic_regression":
-        model = LogisticRegression(max_iter=2000, class_weight="balanced", random_state=RANDOM_STATE, **overrides)
-        return model, True
+        model = LogisticRegression(max_iter=5000, class_weight="balanced", random_state=RANDOM_STATE, **overrides)
+        return model, "scale"
     if name == "decision_tree":
         params = dict(max_depth=6)
         params.update(overrides)
@@ -185,9 +195,13 @@ def make_model(name: str, **overrides):
     raise AssertionError(f"unknown model {name}")
 
 
-def fit_predict(model, needs_imputation: bool, features_train, target_train, features_test):
+def fit_predict(model, needs_imputation, features_train, target_train, features_test):
     if needs_imputation:
-        pipeline = Pipeline([("impute", SimpleImputer(strategy="median")), ("model", model)])
+        steps = [("impute", SimpleImputer(strategy="median"))]
+        if needs_imputation == "scale":
+            steps.append(("scale", StandardScaler()))
+        steps.append(("model", model))
+        pipeline = Pipeline(steps)
         pipeline.fit(features_train, target_train)
         proba = class_probabilities(pipeline, features_test)
         predicted = pipeline.predict(features_test)
