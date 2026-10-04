@@ -1,45 +1,26 @@
-# STR Investment Suitability — Laguna
+# Laguna Rural Site-Candidate Screener
 
-A desk study that scores every majority-land 1km × 1km grid cell in Laguna, Philippines on
-short-term-rental investment suitability. It implements the methodology of Chapter 3 of the
-thesis, held at `docs/thesis-chr3.md`, which is the source of truth for this build.
+The primary map uses a six-feature Random Forest to score empty rural 1 km grid cells by how
+similar their location conditions are to rural cells where an active STR is observed. A score is
+for screening and prioritisation; it is not a revenue forecast, probability calibrated to rural
+prevalence, investment recommendation, or site-feasibility determination.
 
-The output is a *relative* suitability class per cell. It is not a profitability forecast for any
-individual property, and it is not field-verified.
+## Primary workflow
 
-## Method, in the order it runs
+1. Read the validated active-listing targets, landscape-place file, road network, and existing
+   1 km rural grid. The site-candidate workflow does not rebuild the grid.
+2. Label each rural cell with an assigned municipality as listed when it contains at least one
+   active listing, otherwise empty. The population is 110 listed and 931 empty cells.
+3. Engineer six location features: landscape-place count and nearest-place distance, distance to
+   a mapped road, distance to Poblacion, distance to a major road, and Falls/Mountains count.
+4. Train and evaluate a Random Forest with five municipality-grouped folds. Outer test folds hold
+   out municipalities; permutation importance is measured on those held-out folds.
+5. Fit the same Random Forest on a balanced sample of 110 listed and 110 sampled empty cells.
+   Score the rural grid and use the scores for the 931 empty rural cells as screening candidates.
 
-1. Preprocess each source separately — AirROI listings and monthly history, PSA population, OSM.
-2. Build the validated target population: dormant listings removed, uncorroborated
-   trailing-twelve-month revenue removed → 1,277 listings.
-3. Construct the 1km grid over Laguna's derived land boundary → 1,764 cells, with 500m and 2km
-   grids for the sensitivity runs.
-4. Assign rasters to spatial units: every active listing to its containing cell (1,277 → 1,231
-   listings inside the retained grid), every cell to the municipality it overlaps most.
-5. Engineer four feature groups: accessibility, POI, tourism and demographic.
-6. On cells that contain at least one active listing, build a historical performance score:
-   min-max normalize that cell's own mean trailing-twelve-month revenue and occupancy, then
-   average the two with equal weight. Label the bottom 25% Low, the middle 50% Moderate, and
-   the top 25% High. Cells with no listing stay unlabeled. This score is only the training
-   target. It is not an entropy weight and it is not applied again after prediction.
-7. Train a three-class Random Forest on the surrounding market within 5 km, excluding the
-   cell's own listings, plus the count of and distance to landscape places in `poi_laguna.json`
-   (falls, mountains, lakes, and rivers). Every municipality fold is scored
-   (`StratifiedGroupKFold`, 5 folds).
-8. Compare the forest with a majority-class baseline and a stratified baseline using
-   accuracy, balanced accuracy, macro precision, macro recall, macro F1, weighted F1, and
-   one-vs-rest ROC-AUC. Means and standard deviations are taken across the five folds.
-   Report the result even when the forest does not beat a baseline.
-9. Apply the forest to every retained grid cell. The map class is the class with the highest
-   of P(Low), P(Moderate), and P(High). Entropy weighting and Fisher-Jenks are not used.
-   Radius, mean-versus-median, signal-group, and leaf-size checks are saved in the model
-   summary. They do not replace the pre-specified 5 km mean model.
-
-The class is an estimate of which historical performance band a cell's surroundings resemble.
-It is not a forecast of profit. Across the five municipality folds the forest's mean macro F1
-was 0.314 (SD 0.084), above a majority-class baseline of 0.221 and below a stratified baseline
-of 0.368. Mean one-vs-rest ROC-AUC was 0.533, against 0.500 for the majority baseline and
-0.533 for the stratified baseline.
+The held-out mean ROC-AUC is 0.727 (sample SD 0.092). Raw scores for the balanced sample are not
+calibrated probabilities for the full rural population. Training-cell scores in the full-grid
+output are in-sample and are not model-performance results.
 
 ## Layout
 
@@ -60,14 +41,11 @@ target-population exclusions (0006), the hyperparameter search protocol (0010), 
 assignment and PSGC reference (0011), what a cell's predicted value means (0012), and the
 variables kept outside the models and indicator set (0013).
 
-## Status
+## Related project code
 
-The map shows the random forest's predicted performance class for all 1,764 retained grid cells.
-Labels exist for the 288 cells that contain an active listing: 72 Low, 144 Moderate, and 72 High.
-The other 1,476 cells are unlabeled and are predicted from their surroundings only.
-
-Entropy weighting remains in the repository for the earlier composite-score experiments. It does
-not enter `scripts/run_rural.py` or the map. The five-class Fisher-Jenks cut is not used.
+The repository also retains the earlier STR revenue/occupancy prediction and composite
+suitability workflow. Those modules are separate from the primary site-candidate map and do not
+produce its similarity scores.
 
 ## Environment
 

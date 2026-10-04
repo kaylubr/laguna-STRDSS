@@ -52,7 +52,7 @@ Provenance: `currency`, `retrieved_at`, `airroi_endpoint`, `raw_listing`.
    field in every case, with zero contradictions in either direction. 573 of the 616 listings
    with no monthly rows inside the trailing-twelve-month window have earlier revenue and panels
    that simply stop. A positive `ttm_avg_rate` or historical reviews co-occurring with zero
-   revenue is not contradictory — the rate is a list price, and reviews may predate dormancy.
+   revenue is not contradictory — the rate is a list price, and reviews may preut it preserves research history and evidence for earlier findings, so keep or archive it if you may need to cite or reproduce those experiments.date dormancy.
 3. **`l90d_*` is sparser than `ttm_*`** — 1,049 records (50.4%) hold zeros, against 732 for TTM.
 4. **The trailing-twelve-month window is 2025-08 to 2026-07**, established empirically: summing
    panel revenue over those twelve months reproduces `ttm_revenue` with a median ratio of 0.9969

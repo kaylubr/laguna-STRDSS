@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laguna rural site-candidate scores</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html, body, #map { height: 100%; margin: 0; }
+  body { font: 13px/1.45 system-ui, sans-serif; color: #202a31; }
+  #map { position: absolute; inset: 0; }
+  .panel { max-width: 280px; padding: 14px; background: #fff; border: 1px solid #d8dedc; box-shadow: 0 4px 18px #18262120; }
+  .panel h1 { font-size: 15px; margin: 0 0 5px; }
+  .panel h2 { margin: 14px 0 5px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .muted { color: #61706b; font-size: 11px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+  .swatch { width: 13px; height: 13px; border: 1px solid #66716d; flex: none; }
+  .count { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .popup h2 { margin: 0 0 4px; font-size: 15px; }
+  .popup table { border-collapse: collapse; margin-top: 8px; width: 100%; }
+  .popup td { padding: 2px 8px 2px 0; vertical-align: top; }
+  .popup td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .note { max-width: 260px; margin-top: 8px; color: #52615b; font-size: 11px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+const data = __PAYLOAD__;
+const map = L.map('map', {preferCanvas: true});
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+map.fitBounds(data.bounds, {padding: [20, 20]});
+
+const control = L.control({position: 'topright'});
+control.onAdd = () => {
+  const panel = L.DomUtil.create('div', 'panel');
+  panel.innerHTML = `<h1>Rural site-candidate scores</h1>
+    <div class="muted">Six-feature Random Forest · ${data.folds}-fold municipality holdout · mean ROC-AUC ${data.auc.toFixed(3)}</div>
+    <div class="muted">Training sample: ${data.trainingPositives} listed + ${data.trainingNegatives} empty rural cells</div>
+    <div class="note">Color shows RF scores for empty rural cells only. This is a similarity screen, not a forecast or feasibility assessment.</div>
+    <h2>Empty rural cells (${data.scoreCount})</h2>
+    ${data.bands.map((band, index) => `<div class="row"><span class="swatch" style="background:${data.colors[index]}"></span><span>${band}</span><span class="count">${data.bandCounts[index]}</span></div>`).join('')}
+    <h2>Other cells</h2>
+    <div class="row"><span class="swatch" style="background:#eef0ef"></span><span>Listed rural cells</span></div>
+    <div class="row"><span class="swatch" style="background:#fff"></span><span>Urban (${data.urbanCells})</span></div>
+    <div class="row"><span class="swatch" style="background:transparent"></span><span>Unclassified (${data.unclassifiedCells})</span></div>`;
+  L.DomEvent.disableClickPropagation(panel);
+  L.DomEvent.disableScrollPropagation(panel);
+  return panel;
+};
+control.addTo(map);
+
+function popup(cell) {
+  const features = cell.features ? Object.entries(cell.features).map(([name, value]) =>
+    `<tr><td>${name.replaceAll('_', ' ')}</td><td>${value === null ? '—' : Number(value).toLocaleString()}</td></tr>`
+  ).join('') : '';
+  const score = cell.empty && cell.score !== null
+    ? `<tr><td>RF similarity score</td><td>${cell.score.toFixed(3)}</td></tr>` : '';
+  const label = cell.class === 0
+    ? (cell.empty ? 'Empty rural cell' : 'Rural cell with active listing')
+    : cell.class === 1 ? 'Urban · not scored' : 'Unclassified · not scored';
+  return `<div class="popup"><h2>${label}</h2><div class="muted">${cell.municipality || 'Laguna'} · ${cell.id}</div><table>${score}${features}</table></div>`;
+}
+
+data.cells.forEach(cell => {
+  const fill = cell.class === 0 && cell.empty && cell.band !== null
+    ? data.colors[cell.band]
+    : cell.class === 0 ? '#eef0ef' : '#ffffff';
+  const opacity = cell.class === 2 ? 0 : 0.78;
+  const style = {
+    color: cell.class === 1 ? '#999' : '#49534f',
+    weight: cell.class === 0 && cell.empty ? 0.6 : 0.35,
+    fillColor: fill,
+    fillOpacity: opacity
+  };
+  cell.geometry.forEach(rings => L.polygon(rings, style).bindPopup(popup(cell)).addTo(map));
+});
+</script>
+</body>
+</html>
