@@ -10,13 +10,8 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
-    accuracy_score,
     average_precision_score,
-    balanced_accuracy_score,
-    brier_score_loss,
     f1_score,
-    precision_score,
-    recall_score,
     roc_auc_score,
     roc_curve,
 )
@@ -196,13 +191,14 @@ def load_cells() -> tuple[gpd.GeoDataFrame, dict[str, int]]:
     return cells, place_report
 
 
-def build_training_sample(cells: pd.DataFrame) -> pd.DataFrame:
+def build_training_sample(cells: pd.DataFrame, negative_seed: int | None = None) -> pd.DataFrame:
     rural = cells.loc[cells["cell_class"].eq(RURAL_CELL)].copy()
     eligible = rural.loc[rural["municipality"].notna() & rural["municipality"].astype(str).ne("")]
     positives = eligible.loc[eligible["listings_in_cell"] >= 1]
     negatives = eligible.loc[eligible["listings_in_cell"] == 0]
     assert len(positives) > 0 and len(negatives) >= len(positives)
-    sampled_negatives = negatives.sample(n=len(positives), random_state=config.RANDOM_STATE)
+    seed = config.RANDOM_STATE if negative_seed is None else int(negative_seed)
+    sampled_negatives = negatives.sample(n=len(positives), random_state=seed)
     sample = pd.concat([positives, sampled_negatives], ignore_index=True)
     sample[PRESENCE_LABEL] = (sample["listings_in_cell"] >= 1).astype(int)
     assert int(sample[PRESENCE_LABEL].sum()) == int((sample[PRESENCE_LABEL] == 0).sum())
@@ -237,13 +233,7 @@ def _fold_metrics(labels: np.ndarray, scores: np.ndarray, threshold: float) -> d
     return {
         "roc_auc": float(roc_auc_score(labels, scores)),
         "pr_auc": float(average_precision_score(labels, scores)),
-        "brier": float(brier_score_loss(labels, scores)),
-        "accuracy": float(accuracy_score(labels, predictions)),
-        "balanced_accuracy": float(balanced_accuracy_score(labels, predictions)),
         "macro_f1": float(f1_score(labels, predictions, average="macro", zero_division=0)),
-        "precision": float(precision_score(labels, predictions, zero_division=0)),
-        "recall": float(recall_score(labels, predictions, zero_division=0)),
-        "youden_threshold": float(threshold),
     }
 
 
@@ -299,7 +289,12 @@ def evaluate_forest(sample: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, objec
         oof.loc[test_index, "fold"] = fold_id
         oof.loc[test_index, "random_forest_raw"] = scores
         fold_rows.append(
-            {"fold": fold_id, "n": int(len(test_index)), **_fold_metrics(observed, scores, threshold)}
+            {
+                "fold": fold_id,
+                "n": int(len(test_index)),
+                "youden_threshold": threshold,
+                **_fold_metrics(observed, scores, threshold),
+            }
         )
         importance_rows.append(
             _permutation_auc_drop(model, test_features, observed, config.RANDOM_STATE + fold_id)
@@ -325,7 +320,7 @@ def evaluate_forest(sample: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, objec
         "metrics": {
             name: _mean_sd([float(row[name]) for row in fold_rows])
             for name in fold_rows[0]
-            if name not in {"fold", "n"}
+            if name not in {"fold", "n", "youden_threshold"}
         },
         "permutation_importance": importance_summary,
         "permutation_repeats": PERMUTATION_REPEATS,

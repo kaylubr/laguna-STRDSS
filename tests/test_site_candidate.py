@@ -90,6 +90,7 @@ def test_evaluation_reports_only_the_random_forest(monkeypatch):
 
     assert report["model"] == "random_forest"
     assert report["validation_scheme"] == "stratified_group_kfold_5"
+    assert set(report["metrics"]) == {"roc_auc", "pr_auc", "macro_f1"}
     assert len(report["folds"]) == 5
     assert oof["random_forest_raw"].notna().all()
     assert len(report["permutation_importance"]) == len(FEATURES)
