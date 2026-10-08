@@ -1,0 +1,30 @@
+{
+  "cells_tested": 220,
+  "listed_cells_tested": 110,
+  "empty_cells_tested": 110,
+  "rule": "Each cell is scored by a 200-tree forest fit on the other municipalities. The six location features do not include the label. The predicted class uses that fold's training-side Youden cutoff.",
+  "held_out_roc_auc": 0.7274258287458627,
+  "held_out_pr_auc": 0.7128459949005714,
+  "held_out_macro_f1": 0.6561302663653507,
+  "previous_reported": {
+    "roc_auc": 0.7274258287458627,
+    "pr_auc": 0.7128459949005714,
+    "macro_f1": 0.6561302663653507
+  },
+  "classification": {
+    "accuracy": 0.6727272727272727,
+    "precision_listed": 0.6338028169014085,
+    "recall_listed": 0.8181818181818182,
+    "f1_listed": 0.7142857142857143,
+    "precision_empty": 0.7435897435897436,
+    "recall_empty": 0.5272727272727272,
+    "f1_empty": 0.6170212765957447,
+    "macro_f1": 0.6656534954407295,
+    "true_negative": 58,
+    "false_positive": 52,
+    "false_negative": 20,
+    "true_positive": 90
+  },
+  "listed_cells_predicted_listed": 90,
+  "listed_cells_missed": 20
+}
