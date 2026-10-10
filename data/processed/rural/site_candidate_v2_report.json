@@ -1,0 +1,1593 @@
+{
+  "feature_version": "site_candidate_v2",
+  "interpretation": "Candidate site pattern score: higher values indicate stronger similarity to the observable location conditions of rural Laguna cells where active STRs are currently observed. This is a screening measure, not a forecast of revenue, occupancy, investment return, regulatory suitability, or STR success.",
+  "research_use_decision": "deploy v2 as a separate layer",
+  "selected_v2_model": "v2_logistic_regression",
+  "adopted_for_map": true,
+  "population": {
+    "rural_cells": 1041,
+    "positive_rural_cells": 110,
+    "empty_rural_cells": 931,
+    "training_rows": 220,
+    "training_positives": 110,
+    "training_negatives": 110,
+    "negative_sampling_seed": 42,
+    "label_definition": "presence = 1 when listings_in_cell >= 1; presence = 0 when listings_in_cell == 0",
+    "exclusions": "Urban cells, unclassified cells, and rural cells without a municipality are outside the training population."
+  },
+  "places": {
+    "records": 159,
+    "without_coordinates": 39,
+    "duplicate_place_ids_removed": 9,
+    "places_used": 111
+  },
+  "attraction_places": {
+    "categories": [
+      "Falls",
+      "Mountains"
+    ],
+    "dedupe": "first row of each non-empty place_id; blank place_id rows kept",
+    "records": 159,
+    "without_coordinates": 39,
+    "duplicate_place_ids_removed": 9,
+    "places_used": 111
+  },
+  "v2_features": [
+    "listed_places_within_radius",
+    "distance_to_listed_tourist_place",
+    "road_distance_km",
+    "distance_to_nearest_town_center_km",
+    "distance_to_major_road_km",
+    "attraction_count_within_5km"
+  ],
+  "omitted_features": [
+    {
+      "feature": "travel_time_to_nearest_town_center_min",
+      "reason": "No validated routable road graph or speed table is in the repository. Straight-line major-road distance is used instead."
+    },
+    {
+      "feature": "distance_to_transport_access_km",
+      "reason": "No reliable transport-terminal or port point layer is in the repository. In-cell bus-stop counts are not a substitute."
+    },
+    {
+      "feature": "tourism_poi_count_within_5km",
+      "reason": "The same count is already the baseline feature listed_places_within_radius. It is not duplicated under a second name."
+    },
+    {
+      "feature": "food_service_poi_count_within_5km",
+      "reason": "No validated food-service point layer is in the repository."
+    },
+    {
+      "feature": "distance_to_nearest_tourism_poi_km",
+      "reason": "The same distance is already the baseline feature distance_to_listed_tourist_place."
+    },
+    {
+      "feature": "mean_slope_pct",
+      "reason": "No elevation or slope raster is in the repository."
+    },
+    {
+      "feature": "mean_slope_degrees",
+      "reason": "No elevation or slope raster is in the repository."
+    },
+    {
+      "feature": "elevation_m",
+      "reason": "No elevation raster is in the repository."
+    },
+    {
+      "feature": "terrain_ruggedness",
+      "reason": "No elevation raster is in the repository."
+    },
+    {
+      "feature": "built_up_share",
+      "reason": "No validated non-Airbnb built-up or land-use layer is in the repository."
+    }
+  ],
+  "coverage_rural_with_municipality": [
+    {
+      "feature": "listed_places_within_radius",
+      "rows": 1041,
+      "computed": 1041,
+      "missing": 0,
+      "percent_computed": 1.0
+    },
+    {
+      "feature": "distance_to_listed_tourist_place",
+      "rows": 1041,
+      "computed": 1041,
+      "missing": 0,
+      "percent_computed": 1.0
+    },
+    {
+      "feature": "road_distance_km",
+      "rows": 1041,
+      "computed": 1041,
+      "missing": 0,
+      "percent_computed": 1.0
+    },
+    {
+      "feature": "distance_to_nearest_town_center_km",
+      "rows": 1041,
+      "computed": 1041,
+      "missing": 0,
+      "percent_computed": 1.0
+    },
+    {
+      "feature": "distance_to_major_road_km",
+      "rows": 1041,
+      "computed": 1041,
+      "missing": 0,
+      "percent_computed": 1.0
+    },
+    {
+      "feature": "attraction_count_within_5km",
+      "rows": 1041,
+      "computed": 1041,
+      "missing": 0,
+      "percent_computed": 1.0
+    }
+  ],
+  "baseline_replication": {
+    "tolerance": 0.0015,
+    "checks": [
+      {
+        "metric": "roc_auc",
+        "documented": 0.634,
+        "replicated": 0.6341362621689447,
+        "stored_presence_screen": 0.6341362621689447,
+        "within_documented_tolerance": true,
+        "matches_stored_screen": true
+      },
+      {
+        "metric": "accuracy",
+        "documented": 0.575,
+        "replicated": 0.5746396945591609,
+        "stored_presence_screen": 0.5746396945591609,
+        "within_documented_tolerance": true,
+        "matches_stored_screen": true
+      },
+      {
+        "metric": "macro_f1",
+        "documented": 0.57,
+        "replicated": 0.5697681772860242,
+        "stored_presence_screen": 0.5697681772860242,
+        "within_documented_tolerance": true,
+        "matches_stored_screen": true
+      }
+    ]
+  },
+  "baseline_replication_forest": {
+    "accuracy": {
+      "mean": 0.5746396945591609,
+      "std": 0.04114989305986905,
+      "n_folds": 5
+    },
+    "macro_f1": {
+      "mean": 0.5697681772860242,
+      "std": 0.03870180168226576,
+      "n_folds": 5
+    },
+    "roc_auc": {
+      "mean": 0.6341362621689447,
+      "std": 0.09457342023008722,
+      "n_folds": 5
+    },
+    "scheme": "stratified_group_kfold_5",
+    "folds": [
+      {
+        "accuracy": 0.525,
+        "macro_f1": 0.5247029393370857,
+        "roc_auc": 0.5315656565656566,
+        "confusion_matrix": [
+          [
+            11,
+            11
+          ],
+          [
+            8,
+            10
+          ]
+        ],
+        "n": 40
+      },
+      {
+        "accuracy": 0.5476190476190477,
+        "macro_f1": 0.5473624503686898,
+        "roc_auc": 0.5925925925925926,
+        "confusion_matrix": [
+          [
+            12,
+            12
+          ],
+          [
+            7,
+            11
+          ]
+        ],
+        "n": 42
+      },
+      {
+        "accuracy": 0.6226415094339622,
+        "macro_f1": 0.6159420289855072,
+        "roc_auc": 0.7302052785923754,
+        "confusion_matrix": [
+          [
+            13,
+            9
+          ],
+          [
+            11,
+            20
+          ]
+        ],
+        "n": 53
+      },
+      {
+        "accuracy": 0.5681818181818182,
+        "macro_f1": 0.5569687334393216,
+        "roc_auc": 0.5770833333333334,
+        "confusion_matrix": [
+          [
+            9,
+            11
+          ],
+          [
+            8,
+            16
+          ]
+        ],
+        "n": 44
+      },
+      {
+        "accuracy": 0.6097560975609756,
+        "macro_f1": 0.6038647342995169,
+        "roc_auc": 0.7392344497607655,
+        "confusion_matrix": [
+          [
+            15,
+            7
+          ],
+          [
+            9,
+            10
+          ]
+        ],
+        "n": 41
+      }
+    ],
+    "confusion_matrix": [
+      [
+        60,
+        50
+      ],
+      [
+        43,
+        67
+      ]
+    ]
+  },
+  "folds": [
+    {
+      "fold": 1,
+      "n": 40,
+      "municipalities": [
+        {
+          "name": "Nagcarlan",
+          "rows": 14
+        },
+        {
+          "name": "San Pablo",
+          "rows": 26
+        }
+      ]
+    },
+    {
+      "fold": 2,
+      "n": 42,
+      "municipalities": [
+        {
+          "name": "Luisiana",
+          "rows": 16
+        },
+        {
+          "name": "Magdalena",
+          "rows": 5
+        },
+        {
+          "name": "Santa Maria",
+          "rows": 21
+        }
+      ]
+    },
+    {
+      "fold": 3,
+      "n": 53,
+      "municipalities": [
+        {
+          "name": "Cavinti",
+          "rows": 37
+        },
+        {
+          "name": "Famy",
+          "rows": 2
+        },
+        {
+          "name": "Los Ba\u00f1os",
+          "rows": 2
+        },
+        {
+          "name": "Mabitac",
+          "rows": 10
+        },
+        {
+          "name": "Siniloan",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "fold": 4,
+      "n": 44,
+      "municipalities": [
+        {
+          "name": "Alaminos",
+          "rows": 6
+        },
+        {
+          "name": "Calamba",
+          "rows": 6
+        },
+        {
+          "name": "Liliw",
+          "rows": 10
+        },
+        {
+          "name": "Pakil",
+          "rows": 5
+        },
+        {
+          "name": "Pangil",
+          "rows": 4
+        },
+        {
+          "name": "Pila",
+          "rows": 7
+        },
+        {
+          "name": "Santa Cruz",
+          "rows": 6
+        }
+      ]
+    },
+    {
+      "fold": 5,
+      "n": 41,
+      "municipalities": [
+        {
+          "name": "Bay",
+          "rows": 2
+        },
+        {
+          "name": "Calauan",
+          "rows": 6
+        },
+        {
+          "name": "Lumban",
+          "rows": 8
+        },
+        {
+          "name": "Majayjay",
+          "rows": 11
+        },
+        {
+          "name": "Pagsanjan",
+          "rows": 6
+        },
+        {
+          "name": "Rizal",
+          "rows": 2
+        },
+        {
+          "name": "Victoria",
+          "rows": 6
+        }
+      ]
+    }
+  ],
+  "validation_scheme": "stratified_group_kfold_5",
+  "metrics": {
+    "baseline_random_forest": {
+      "roc_auc": {
+        "mean": 0.6341362621689447,
+        "std": 0.09457342023008722,
+        "n_folds": 5,
+        "values": [
+          0.5315656565656566,
+          0.5925925925925926,
+          0.7302052785923754,
+          0.5770833333333334,
+          0.7392344497607655
+        ]
+      },
+      "pr_auc": {
+        "mean": 0.6240206179419242,
+        "std": 0.14928117700152696,
+        "n_folds": 5,
+        "values": [
+          0.47103264456838223,
+          0.47424104649552784,
+          0.8025815108653077,
+          0.6430972048843046,
+          0.7291506828960985
+        ]
+      },
+      "brier": {
+        "mean": 0.24904151267539804,
+        "std": 0.03464949812091475,
+        "n_folds": 5,
+        "values": [
+          0.2931314737310592,
+          0.25730034377272926,
+          0.22460640296335932,
+          0.2651142943529411,
+          0.20505504855690126
+        ]
+      },
+      "brier_calibrated": {
+        "mean": 0.24031869397161537,
+        "std": 0.012763785636344106,
+        "n_folds": 5,
+        "values": [
+          0.2565850808984408,
+          0.24128538331635702,
+          0.23742834054958234,
+          0.24487158243471344,
+          0.2214230826589832
+        ]
+      },
+      "youden_macro_f1": {
+        "mean": 0.5306828970167514,
+        "std": 0.08879907091062178,
+        "n_folds": 5,
+        "values": [
+          0.4301994301994302,
+          0.44297082228116713,
+          0.564042303172738,
+          0.5900621118012422,
+          0.6261398176291793
+        ]
+      },
+      "youden_balanced_accuracy": {
+        "mean": 0.561389317624462,
+        "std": 0.055794501438429164,
+        "n_folds": 5,
+        "values": [
+          0.5404040404040404,
+          0.47916666666666663,
+          0.5689149560117301,
+          0.5916666666666667,
+          0.6267942583732058
+        ]
+      },
+      "youden_precision": {
+        "mean": 0.5480329611908559,
+        "std": 0.11873693491007338,
+        "n_folds": 5,
+        "values": [
+          0.4722222222222222,
+          0.375,
+          0.631578947368421,
+          0.6363636363636364,
+          0.625
+        ]
+      },
+      "youden_recall": {
+        "mean": 0.598990756461045,
+        "std": 0.2926026286545317,
+        "n_folds": 5,
+        "values": [
+          0.9444444444444444,
+          0.16666666666666666,
+          0.7741935483870968,
+          0.5833333333333334,
+          0.5263157894736842
+        ]
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "roc_auc": 0.5315656565656566,
+          "pr_auc": 0.47103264456838223,
+          "brier": 0.2931314737310592,
+          "brier_calibrated": 0.2565850808984408,
+          "youden_threshold": 0.1890828619479935,
+          "youden_macro_f1": 0.4301994301994302,
+          "youden_balanced_accuracy": 0.5404040404040404,
+          "youden_precision": 0.4722222222222222,
+          "youden_recall": 0.9444444444444444,
+          "confusion_matrix": [
+            [
+              3,
+              19
+            ],
+            [
+              1,
+              17
+            ]
+          ]
+        },
+        {
+          "fold": 2,
+          "roc_auc": 0.5925925925925926,
+          "pr_auc": 0.47424104649552784,
+          "brier": 0.25730034377272926,
+          "brier_calibrated": 0.24128538331635702,
+          "youden_threshold": 0.7423214285714286,
+          "youden_macro_f1": 0.44297082228116713,
+          "youden_balanced_accuracy": 0.47916666666666663,
+          "youden_precision": 0.375,
+          "youden_recall": 0.16666666666666666,
+          "confusion_matrix": [
+            [
+              19,
+              5
+            ],
+            [
+              15,
+              3
+            ]
+          ]
+        },
+        {
+          "fold": 3,
+          "roc_auc": 0.7302052785923754,
+          "pr_auc": 0.8025815108653077,
+          "brier": 0.22460640296335932,
+          "brier_calibrated": 0.23742834054958234,
+          "youden_threshold": 0.288724686845662,
+          "youden_macro_f1": 0.564042303172738,
+          "youden_balanced_accuracy": 0.5689149560117301,
+          "youden_precision": 0.631578947368421,
+          "youden_recall": 0.7741935483870968,
+          "confusion_matrix": [
+            [
+              8,
+              14
+            ],
+            [
+              7,
+              24
+            ]
+          ]
+        },
+        {
+          "fold": 4,
+          "roc_auc": 0.5770833333333334,
+          "pr_auc": 0.6430972048843046,
+          "brier": 0.2651142943529411,
+          "brier_calibrated": 0.24487158243471344,
+          "youden_threshold": 0.5914444444444444,
+          "youden_macro_f1": 0.5900621118012422,
+          "youden_balanced_accuracy": 0.5916666666666667,
+          "youden_precision": 0.6363636363636364,
+          "youden_recall": 0.5833333333333334,
+          "confusion_matrix": [
+            [
+              12,
+              8
+            ],
+            [
+              10,
+              14
+            ]
+          ]
+        },
+        {
+          "fold": 5,
+          "roc_auc": 0.7392344497607655,
+          "pr_auc": 0.7291506828960985,
+          "brier": 0.20505504855690126,
+          "brier_calibrated": 0.2214230826589832,
+          "youden_threshold": 0.5515294566544566,
+          "youden_macro_f1": 0.6261398176291793,
+          "youden_balanced_accuracy": 0.6267942583732058,
+          "youden_precision": 0.625,
+          "youden_recall": 0.5263157894736842,
+          "confusion_matrix": [
+            [
+              16,
+              6
+            ],
+            [
+              9,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    "v2_logistic_regression": {
+      "roc_auc": {
+        "mean": 0.7459168081494058,
+        "std": 0.04137209669889479,
+        "n_folds": 5,
+        "values": [
+          0.6919191919191919,
+          0.7152777777777777,
+          0.7859237536656891,
+          0.7541666666666667,
+          0.7822966507177034
+        ]
+      },
+      "pr_auc": {
+        "mean": 0.7098333253797435,
+        "std": 0.0887086792376553,
+        "n_folds": 5,
+        "values": [
+          0.6605065587704477,
+          0.6003606833316979,
+          0.8214245050140131,
+          0.7752263739009797,
+          0.691648505881579
+        ]
+      },
+      "brier": {
+        "mean": 0.20585814604506583,
+        "std": 0.02235635071288072,
+        "n_folds": 5,
+        "values": [
+          0.24158012616568492,
+          0.2121851720592573,
+          0.1951633267288806,
+          0.19639446036149594,
+          0.18396764491001016
+        ]
+      },
+      "brier_calibrated": {
+        "mean": 0.21325836964791184,
+        "std": 0.015647293062292362,
+        "n_folds": 5,
+        "values": [
+          0.2356359897298324,
+          0.21267234560032236,
+          0.21583631201964276,
+          0.2104188352749878,
+          0.1917283656147738
+        ]
+      },
+      "youden_macro_f1": {
+        "mean": 0.6725466759471506,
+        "std": 0.054912513630745764,
+        "n_folds": 5,
+        "values": [
+          0.5907928388746804,
+          0.690300623936472,
+          0.7065337763012182,
+          0.6459770114942529,
+          0.7291291291291291
+        ]
+      },
+      "youden_balanced_accuracy": {
+        "mean": 0.6871960693522663,
+        "std": 0.047579019003204694,
+        "n_folds": 5,
+        "values": [
+          0.6212121212121212,
+          0.7083333333333334,
+          0.7052785923753666,
+          0.6583333333333333,
+          0.742822966507177
+        ]
+      },
+      "youden_precision": {
+        "mean": 0.6373238526179702,
+        "std": 0.07871029847799564,
+        "n_folds": 5,
+        "values": [
+          0.5357142857142857,
+          0.6,
+          0.75,
+          0.6470588235294118,
+          0.6538461538461539
+        ]
+      },
+      "youden_recall": {
+        "mean": 0.8504527447651385,
+        "std": 0.05645125830878103,
+        "n_folds": 5,
+        "values": [
+          0.8333333333333334,
+          0.8333333333333334,
+          0.7741935483870968,
+          0.9166666666666666,
+          0.8947368421052632
+        ]
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "roc_auc": 0.6919191919191919,
+          "pr_auc": 0.6605065587704477,
+          "brier": 0.24158012616568492,
+          "brier_calibrated": 0.2356359897298324,
+          "youden_threshold": 0.5150742157773174,
+          "youden_macro_f1": 0.5907928388746804,
+          "youden_balanced_accuracy": 0.6212121212121212,
+          "youden_precision": 0.5357142857142857,
+          "youden_recall": 0.8333333333333334,
+          "confusion_matrix": [
+            [
+              9,
+              13
+            ],
+            [
+              3,
+              15
+            ]
+          ]
+        },
+        {
+          "fold": 2,
+          "roc_auc": 0.7152777777777777,
+          "pr_auc": 0.6003606833316979,
+          "brier": 0.2121851720592573,
+          "brier_calibrated": 0.21267234560032236,
+          "youden_threshold": 0.3791161145940682,
+          "youden_macro_f1": 0.690300623936472,
+          "youden_balanced_accuracy": 0.7083333333333334,
+          "youden_precision": 0.6,
+          "youden_recall": 0.8333333333333334,
+          "confusion_matrix": [
+            [
+              14,
+              10
+            ],
+            [
+              3,
+              15
+            ]
+          ]
+        },
+        {
+          "fold": 3,
+          "roc_auc": 0.7859237536656891,
+          "pr_auc": 0.8214245050140131,
+          "brier": 0.1951633267288806,
+          "brier_calibrated": 0.21583631201964276,
+          "youden_threshold": 0.510145075807683,
+          "youden_macro_f1": 0.7065337763012182,
+          "youden_balanced_accuracy": 0.7052785923753666,
+          "youden_precision": 0.75,
+          "youden_recall": 0.7741935483870968,
+          "confusion_matrix": [
+            [
+              14,
+              8
+            ],
+            [
+              7,
+              24
+            ]
+          ]
+        },
+        {
+          "fold": 4,
+          "roc_auc": 0.7541666666666667,
+          "pr_auc": 0.7752263739009797,
+          "brier": 0.19639446036149594,
+          "brier_calibrated": 0.2104188352749878,
+          "youden_threshold": 0.3786401916648867,
+          "youden_macro_f1": 0.6459770114942529,
+          "youden_balanced_accuracy": 0.6583333333333333,
+          "youden_precision": 0.6470588235294118,
+          "youden_recall": 0.9166666666666666,
+          "confusion_matrix": [
+            [
+              8,
+              12
+            ],
+            [
+              2,
+              22
+            ]
+          ]
+        },
+        {
+          "fold": 5,
+          "roc_auc": 0.7822966507177034,
+          "pr_auc": 0.691648505881579,
+          "brier": 0.18396764491001016,
+          "brier_calibrated": 0.1917283656147738,
+          "youden_threshold": 0.43369315105838846,
+          "youden_macro_f1": 0.7291291291291291,
+          "youden_balanced_accuracy": 0.742822966507177,
+          "youden_precision": 0.6538461538461539,
+          "youden_recall": 0.8947368421052632,
+          "confusion_matrix": [
+            [
+              13,
+              9
+            ],
+            [
+              2,
+              17
+            ]
+          ]
+        }
+      ]
+    },
+    "v2_random_forest": {
+      "roc_auc": {
+        "mean": 0.7274258287458627,
+        "std": 0.09218070036883673,
+        "n_folds": 5,
+        "values": [
+          0.5833333333333334,
+          0.7361111111111112,
+          0.7595307917888563,
+          0.7208333333333333,
+          0.8373205741626794
+        ]
+      },
+      "pr_auc": {
+        "mean": 0.7128459949005714,
+        "std": 0.0974259973723004,
+        "n_folds": 5,
+        "values": [
+          0.5567518011005065,
+          0.6768574955227565,
+          0.779197866464905,
+          0.7755703055794967,
+          0.7758525058351928
+        ]
+      },
+      "brier": {
+        "mean": 0.21251674730090747,
+        "std": 0.03631709423288006,
+        "n_folds": 5,
+        "values": [
+          0.26972829671339554,
+          0.20011114781524533,
+          0.21544203554107402,
+          0.20737240207281712,
+          0.16992985436200547
+        ]
+      },
+      "brier_calibrated": {
+        "mean": 0.22255101964030127,
+        "std": 0.017582795981890106,
+        "n_folds": 5,
+        "values": [
+          0.25106287886665407,
+          0.21425325242711937,
+          0.2238053897113995,
+          0.2196532075663068,
+          0.20398036963002666
+        ]
+      },
+      "youden_macro_f1": {
+        "mean": 0.6561302663653507,
+        "std": 0.05589913167754812,
+        "n_folds": 5,
+        "values": [
+          0.5747342088805503,
+          0.6659090909090909,
+          0.731159420289855,
+          0.6459770114942529,
+          0.6628716002530044
+        ]
+      },
+      "youden_balanced_accuracy": {
+        "mean": 0.6726531443466928,
+        "std": 0.05955309335117871,
+        "n_folds": 5,
+        "values": [
+          0.5782828282828283,
+          0.6875,
+          0.7346041055718475,
+          0.6583333333333333,
+          0.7045454545454546
+        ]
+      },
+      "youden_precision": {
+        "mean": 0.6269289745075749,
+        "std": 0.10277915864692913,
+        "n_folds": 5,
+        "values": [
+          0.5238095238095238,
+          0.5769230769230769,
+          0.7931034482758621,
+          0.6470588235294118,
+          0.59375
+        ]
+      },
+      "youden_recall": {
+        "mean": 0.8206093189964158,
+        "std": 0.15136793125834128,
+        "n_folds": 5,
+        "values": [
+          0.6111111111111112,
+          0.8333333333333334,
+          0.7419354838709677,
+          0.9166666666666666,
+          1.0
+        ]
+      },
+      "folds": [
+        {
+          "fold": 1,
+          "roc_auc": 0.5833333333333334,
+          "pr_auc": 0.5567518011005065,
+          "brier": 0.26972829671339554,
+          "brier_calibrated": 0.25106287886665407,
+          "youden_threshold": 0.5663709677419355,
+          "youden_macro_f1": 0.5747342088805503,
+          "youden_balanced_accuracy": 0.5782828282828283,
+          "youden_precision": 0.5238095238095238,
+          "youden_recall": 0.6111111111111112,
+          "confusion_matrix": [
+            [
+              12,
+              10
+            ],
+            [
+              7,
+              11
+            ]
+          ]
+        },
+        {
+          "fold": 2,
+          "roc_auc": 0.7361111111111112,
+          "pr_auc": 0.6768574955227565,
+          "brier": 0.20011114781524533,
+          "brier_calibrated": 0.21425325242711937,
+          "youden_threshold": 0.4495877825877826,
+          "youden_macro_f1": 0.6659090909090909,
+          "youden_balanced_accuracy": 0.6875,
+          "youden_precision": 0.5769230769230769,
+          "youden_recall": 0.8333333333333334,
+          "confusion_matrix": [
+            [
+              13,
+              11
+            ],
+            [
+              3,
+              15
+            ]
+          ]
+        },
+        {
+          "fold": 3,
+          "roc_auc": 0.7595307917888563,
+          "pr_auc": 0.779197866464905,
+          "brier": 0.21544203554107402,
+          "brier_calibrated": 0.2238053897113995,
+          "youden_threshold": 0.41153333333333336,
+          "youden_macro_f1": 0.731159420289855,
+          "youden_balanced_accuracy": 0.7346041055718475,
+          "youden_precision": 0.7931034482758621,
+          "youden_recall": 0.7419354838709677,
+          "confusion_matrix": [
+            [
+              16,
+              6
+            ],
+            [
+              8,
+              23
+            ]
+          ]
+        },
+        {
+          "fold": 4,
+          "roc_auc": 0.7208333333333333,
+          "pr_auc": 0.7755703055794967,
+          "brier": 0.20737240207281712,
+          "brier_calibrated": 0.2196532075663068,
+          "youden_threshold": 0.381,
+          "youden_macro_f1": 0.6459770114942529,
+          "youden_balanced_accuracy": 0.6583333333333333,
+          "youden_precision": 0.6470588235294118,
+          "youden_recall": 0.9166666666666666,
+          "confusion_matrix": [
+            [
+              8,
+              12
+            ],
+            [
+              2,
+              22
+            ]
+          ]
+        },
+        {
+          "fold": 5,
+          "roc_auc": 0.8373205741626794,
+          "pr_auc": 0.7758525058351928,
+          "brier": 0.16992985436200547,
+          "brier_calibrated": 0.20398036963002666,
+          "youden_threshold": 0.356986013986014,
+          "youden_macro_f1": 0.6628716002530044,
+          "youden_balanced_accuracy": 0.7045454545454546,
+          "youden_precision": 0.59375,
+          "youden_recall": 1.0,
+          "confusion_matrix": [
+            [
+              9,
+              13
+            ],
+            [
+              0,
+              19
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "matched_deltas": {
+    "v2_logistic_regression": {
+      "candidate": "v2_logistic_regression",
+      "baseline_roc_auc": [
+        0.5315656565656566,
+        0.5925925925925926,
+        0.7302052785923754,
+        0.5770833333333334,
+        0.7392344497607655
+      ],
+      "candidate_roc_auc": [
+        0.6919191919191919,
+        0.7152777777777777,
+        0.7859237536656891,
+        0.7541666666666667,
+        0.7822966507177034
+      ],
+      "delta_auc_fold": [
+        0.16035353535353536,
+        0.12268518518518512,
+        0.055718475073313734,
+        0.17708333333333326,
+        0.04306220095693791
+      ],
+      "mean": 0.11178054598046108,
+      "std": 0.06043150508229631,
+      "n_folds": 5,
+      "values": [
+        0.16035353535353536,
+        0.12268518518518512,
+        0.055718475073313734,
+        0.17708333333333326,
+        0.04306220095693791
+      ]
+    },
+    "v2_random_forest": {
+      "candidate": "v2_random_forest",
+      "baseline_roc_auc": [
+        0.5315656565656566,
+        0.5925925925925926,
+        0.7302052785923754,
+        0.5770833333333334,
+        0.7392344497607655
+      ],
+      "candidate_roc_auc": [
+        0.5833333333333334,
+        0.7361111111111112,
+        0.7595307917888563,
+        0.7208333333333333,
+        0.8373205741626794
+      ],
+      "delta_auc_fold": [
+        0.051767676767676796,
+        0.1435185185185186,
+        0.029325513196480912,
+        0.14374999999999993,
+        0.09808612440191389
+      ],
+      "mean": 0.09328956657691803,
+      "std": 0.05221991329835681,
+      "n_folds": 5,
+      "values": [
+        0.051767676767676796,
+        0.1435185185185186,
+        0.029325513196480912,
+        0.14374999999999993,
+        0.09808612440191389
+      ]
+    }
+  },
+  "municipality_bootstrap": {
+    "v2_logistic_regression": {
+      "draws": 1000,
+      "mean": 0.09902580399151285,
+      "interval_low": 0.026005421448357713,
+      "interval_high": 0.17551617665086616
+    },
+    "v2_random_forest": {
+      "draws": 1000,
+      "mean": 0.08900355954381725,
+      "interval_low": 0.015042801118608718,
+      "interval_high": 0.16914647269041871
+    }
+  },
+  "spearman_flag_threshold": 0.85,
+  "correlations": [
+    {
+      "fold": 1,
+      "strong_pairs": [
+        {
+          "left": "listed_places_within_radius",
+          "right": "attraction_count_within_5km",
+          "spearman": 0.8840772353187527
+        }
+      ],
+      "matrix": {
+        "listed_places_within_radius": {
+          "listed_places_within_radius": 1.0,
+          "distance_to_listed_tourist_place": -0.695017,
+          "road_distance_km": -0.014971,
+          "distance_to_nearest_town_center_km": -0.226908,
+          "distance_to_major_road_km": -0.035228,
+          "attraction_count_within_5km": 0.884077
+        },
+        "distance_to_listed_tourist_place": {
+          "listed_places_within_radius": -0.695017,
+          "distance_to_listed_tourist_place": 1.0,
+          "road_distance_km": 0.13727,
+          "distance_to_nearest_town_center_km": 0.228005,
+          "distance_to_major_road_km": 0.155036,
+          "attraction_count_within_5km": -0.62572
+        },
+        "road_distance_km": {
+          "listed_places_within_radius": -0.014971,
+          "distance_to_listed_tourist_place": 0.13727,
+          "road_distance_km": 1.0,
+          "distance_to_nearest_town_center_km": 0.196669,
+          "distance_to_major_road_km": 0.606379,
+          "attraction_count_within_5km": 0.042315
+        },
+        "distance_to_nearest_town_center_km": {
+          "listed_places_within_radius": -0.226908,
+          "distance_to_listed_tourist_place": 0.228005,
+          "road_distance_km": 0.196669,
+          "distance_to_nearest_town_center_km": 1.0,
+          "distance_to_major_road_km": 0.285857,
+          "attraction_count_within_5km": -0.085462
+        },
+        "distance_to_major_road_km": {
+          "listed_places_within_radius": -0.035228,
+          "distance_to_listed_tourist_place": 0.155036,
+          "road_distance_km": 0.606379,
+          "distance_to_nearest_town_center_km": 0.285857,
+          "distance_to_major_road_km": 1.0,
+          "attraction_count_within_5km": -0.042147
+        },
+        "attraction_count_within_5km": {
+          "listed_places_within_radius": 0.884077,
+          "distance_to_listed_tourist_place": -0.62572,
+          "road_distance_km": 0.042315,
+          "distance_to_nearest_town_center_km": -0.085462,
+          "distance_to_major_road_km": -0.042147,
+          "attraction_count_within_5km": 1.0
+        }
+      }
+    },
+    {
+      "fold": 2,
+      "strong_pairs": [
+        {
+          "left": "listed_places_within_radius",
+          "right": "attraction_count_within_5km",
+          "spearman": 0.9141882216221048
+        }
+      ],
+      "matrix": {
+        "listed_places_within_radius": {
+          "listed_places_within_radius": 1.0,
+          "distance_to_listed_tourist_place": -0.736345,
+          "road_distance_km": 0.066373,
+          "distance_to_nearest_town_center_km": -0.240475,
+          "distance_to_major_road_km": 0.044055,
+          "attraction_count_within_5km": 0.914188
+        },
+        "distance_to_listed_tourist_place": {
+          "listed_places_within_radius": -0.736345,
+          "distance_to_listed_tourist_place": 1.0,
+          "road_distance_km": 0.065415,
+          "distance_to_nearest_town_center_km": 0.306201,
+          "distance_to_major_road_km": 0.073749,
+          "attraction_count_within_5km": -0.662115
+        },
+        "road_distance_km": {
+          "listed_places_within_radius": 0.066373,
+          "distance_to_listed_tourist_place": 0.065415,
+          "road_distance_km": 1.0,
+          "distance_to_nearest_town_center_km": 0.077722,
+          "distance_to_major_road_km": 0.622803,
+          "attraction_count_within_5km": 0.125141
+        },
+        "distance_to_nearest_town_center_km": {
+          "listed_places_within_radius": -0.240475,
+          "distance_to_listed_tourist_place": 0.306201,
+          "road_distance_km": 0.077722,
+          "distance_to_nearest_town_center_km": 1.0,
+          "distance_to_major_road_km": 0.167856,
+          "attraction_count_within_5km": -0.139229
+        },
+        "distance_to_major_road_km": {
+          "listed_places_within_radius": 0.044055,
+          "distance_to_listed_tourist_place": 0.073749,
+          "road_distance_km": 0.622803,
+          "distance_to_nearest_town_center_km": 0.167856,
+          "distance_to_major_road_km": 1.0,
+          "attraction_count_within_5km": 0.038538
+        },
+        "attraction_count_within_5km": {
+          "listed_places_within_radius": 0.914188,
+          "distance_to_listed_tourist_place": -0.662115,
+          "road_distance_km": 0.125141,
+          "distance_to_nearest_town_center_km": -0.139229,
+          "distance_to_major_road_km": 0.038538,
+          "attraction_count_within_5km": 1.0
+        }
+      }
+    },
+    {
+      "fold": 3,
+      "strong_pairs": [
+        {
+          "left": "listed_places_within_radius",
+          "right": "attraction_count_within_5km",
+          "spearman": 0.8620552476135993
+        }
+      ],
+      "matrix": {
+        "listed_places_within_radius": {
+          "listed_places_within_radius": 1.0,
+          "distance_to_listed_tourist_place": -0.7311,
+          "road_distance_km": 0.102592,
+          "distance_to_nearest_town_center_km": -0.351442,
+          "distance_to_major_road_km": 0.011239,
+          "attraction_count_within_5km": 0.862055
+        },
+        "distance_to_listed_tourist_place": {
+          "listed_places_within_radius": -0.7311,
+          "distance_to_listed_tourist_place": 1.0,
+          "road_distance_km": 0.010685,
+          "distance_to_nearest_town_center_km": 0.322098,
+          "distance_to_major_road_km": 0.083729,
+          "attraction_count_within_5km": -0.645117
+        },
+        "road_distance_km": {
+          "listed_places_within_radius": 0.102592,
+          "distance_to_listed_tourist_place": 0.010685,
+          "road_distance_km": 1.0,
+          "distance_to_nearest_town_center_km": 0.129271,
+          "distance_to_major_road_km": 0.619534,
+          "attraction_count_within_5km": 0.148302
+        },
+        "distance_to_nearest_town_center_km": {
+          "listed_places_within_radius": -0.351442,
+          "distance_to_listed_tourist_place": 0.322098,
+          "road_distance_km": 0.129271,
+          "distance_to_nearest_town_center_km": 1.0,
+          "distance_to_major_road_km": 0.205708,
+          "attraction_count_within_5km": -0.184458
+        },
+        "distance_to_major_road_km": {
+          "listed_places_within_radius": 0.011239,
+          "distance_to_listed_tourist_place": 0.083729,
+          "road_distance_km": 0.619534,
+          "distance_to_nearest_town_center_km": 0.205708,
+          "distance_to_major_road_km": 1.0,
+          "attraction_count_within_5km": 0.005567
+        },
+        "attraction_count_within_5km": {
+          "listed_places_within_radius": 0.862055,
+          "distance_to_listed_tourist_place": -0.645117,
+          "road_distance_km": 0.148302,
+          "distance_to_nearest_town_center_km": -0.184458,
+          "distance_to_major_road_km": 0.005567,
+          "attraction_count_within_5km": 1.0
+        }
+      }
+    },
+    {
+      "fold": 4,
+      "strong_pairs": [
+        {
+          "left": "listed_places_within_radius",
+          "right": "attraction_count_within_5km",
+          "spearman": 0.9053748041896281
+        }
+      ],
+      "matrix": {
+        "listed_places_within_radius": {
+          "listed_places_within_radius": 1.0,
+          "distance_to_listed_tourist_place": -0.748703,
+          "road_distance_km": 0.034573,
+          "distance_to_nearest_town_center_km": -0.317337,
+          "distance_to_major_road_km": 0.004875,
+          "attraction_count_within_5km": 0.905375
+        },
+        "distance_to_listed_tourist_place": {
+          "listed_places_within_radius": -0.748703,
+          "distance_to_listed_tourist_place": 1.0,
+          "road_distance_km": 0.069225,
+          "distance_to_nearest_town_center_km": 0.23838,
+          "distance_to_major_road_km": 0.056956,
+          "attraction_count_within_5km": -0.683601
+        },
+        "road_distance_km": {
+          "listed_places_within_radius": 0.034573,
+          "distance_to_listed_tourist_place": 0.069225,
+          "road_distance_km": 1.0,
+          "distance_to_nearest_town_center_km": 0.160266,
+          "distance_to_major_road_km": 0.6402,
+          "attraction_count_within_5km": 0.069178
+        },
+        "distance_to_nearest_town_center_km": {
+          "listed_places_within_radius": -0.317337,
+          "distance_to_listed_tourist_place": 0.23838,
+          "road_distance_km": 0.160266,
+          "distance_to_nearest_town_center_km": 1.0,
+          "distance_to_major_road_km": 0.186227,
+          "attraction_count_within_5km": -0.16147
+        },
+        "distance_to_major_road_km": {
+          "listed_places_within_radius": 0.004875,
+          "distance_to_listed_tourist_place": 0.056956,
+          "road_distance_km": 0.6402,
+          "distance_to_nearest_town_center_km": 0.186227,
+          "distance_to_major_road_km": 1.0,
+          "attraction_count_within_5km": 0.001732
+        },
+        "attraction_count_within_5km": {
+          "listed_places_within_radius": 0.905375,
+          "distance_to_listed_tourist_place": -0.683601,
+          "road_distance_km": 0.069178,
+          "distance_to_nearest_town_center_km": -0.16147,
+          "distance_to_major_road_km": 0.001732,
+          "attraction_count_within_5km": 1.0
+        }
+      }
+    },
+    {
+      "fold": 5,
+      "strong_pairs": [
+        {
+          "left": "listed_places_within_radius",
+          "right": "attraction_count_within_5km",
+          "spearman": 0.9014804212554243
+        }
+      ],
+      "matrix": {
+        "listed_places_within_radius": {
+          "listed_places_within_radius": 1.0,
+          "distance_to_listed_tourist_place": -0.756769,
+          "road_distance_km": 0.045442,
+          "distance_to_nearest_town_center_km": -0.257933,
+          "distance_to_major_road_km": 0.002226,
+          "attraction_count_within_5km": 0.90148
+        },
+        "distance_to_listed_tourist_place": {
+          "listed_places_within_radius": -0.756769,
+          "distance_to_listed_tourist_place": 1.0,
+          "road_distance_km": 0.017245,
+          "distance_to_nearest_town_center_km": 0.199477,
+          "distance_to_major_road_km": 0.041104,
+          "attraction_count_within_5km": -0.697752
+        },
+        "road_distance_km": {
+          "listed_places_within_radius": 0.045442,
+          "distance_to_listed_tourist_place": 0.017245,
+          "road_distance_km": 1.0,
+          "distance_to_nearest_town_center_km": 0.135627,
+          "distance_to_major_road_km": 0.574523,
+          "attraction_count_within_5km": 0.122569
+        },
+        "distance_to_nearest_town_center_km": {
+          "listed_places_within_radius": -0.257933,
+          "distance_to_listed_tourist_place": 0.199477,
+          "road_distance_km": 0.135627,
+          "distance_to_nearest_town_center_km": 1.0,
+          "distance_to_major_road_km": 0.209443,
+          "attraction_count_within_5km": -0.142337
+        },
+        "distance_to_major_road_km": {
+          "listed_places_within_radius": 0.002226,
+          "distance_to_listed_tourist_place": 0.041104,
+          "road_distance_km": 0.574523,
+          "distance_to_nearest_town_center_km": 0.209443,
+          "distance_to_major_road_km": 1.0,
+          "attraction_count_within_5km": 0.006329
+        },
+        "attraction_count_within_5km": {
+          "listed_places_within_radius": 0.90148,
+          "distance_to_listed_tourist_place": -0.697752,
+          "road_distance_km": 0.122569,
+          "distance_to_nearest_town_center_km": -0.142337,
+          "distance_to_major_road_km": 0.006329,
+          "attraction_count_within_5km": 1.0
+        }
+      }
+    }
+  ],
+  "permutation_importance": [
+    {
+      "model": "v2_random_forest",
+      "feature": "listed_places_within_radius",
+      "mean_auc_drop": 0.018226433120108847,
+      "std_auc_drop": 0.028656302904167114,
+      "fold_values": [
+        0.04898989898989903,
+        -0.022453703703703663,
+        0.041935483870967724,
+        0.007708333333333317,
+        0.01495215311004781
+      ]
+    },
+    {
+      "model": "v2_random_forest",
+      "feature": "distance_to_listed_tourist_place",
+      "mean_auc_drop": 0.013523254260202473,
+      "std_auc_drop": 0.03604385598023533,
+      "fold_values": [
+        -0.019696969696969664,
+        0.027199074074074136,
+        0.0508064516129032,
+        -0.029687500000000026,
+        0.03899521531100471
+      ]
+    },
+    {
+      "model": "v2_random_forest",
+      "feature": "road_distance_km",
+      "mean_auc_drop": 0.07984960813568623,
+      "std_auc_drop": 0.028592212278797182,
+      "fold_values": [
+        0.07979797979797983,
+        0.07430555555555562,
+        0.058284457478005834,
+        0.05874999999999999,
+        0.1281100478468899
+      ]
+    },
+    {
+      "model": "v2_random_forest",
+      "feature": "distance_to_nearest_town_center_km",
+      "mean_auc_drop": 0.018110563401416556,
+      "std_auc_drop": 0.018393247636252247,
+      "fold_values": [
+        0.0372474747474748,
+        0.023958333333333404,
+        -0.009970674486803522,
+        0.010729166666666673,
+        0.028588516746411424
+      ]
+    },
+    {
+      "model": "v2_random_forest",
+      "feature": "distance_to_major_road_km",
+      "mean_auc_drop": 0.11433676464703628,
+      "std_auc_drop": 0.04003159932743471,
+      "fold_values": [
+        0.07424242424242426,
+        0.14884259259259264,
+        0.1512463343108504,
+        0.12833333333333335,
+        0.06901913875598079
+      ]
+    },
+    {
+      "model": "v2_random_forest",
+      "feature": "attraction_count_within_5km",
+      "mean_auc_drop": 0.009723363730685464,
+      "std_auc_drop": 0.030890962658026305,
+      "fold_values": [
+        -0.03611111111111108,
+        0.019097222222222276,
+        0.012463343108504398,
+        0.003645833333333309,
+        0.04952153110047842
+      ]
+    },
+    {
+      "model": "v2_logistic_regression",
+      "feature": "listed_places_within_radius",
+      "mean_auc_drop": 0.08775017292334777,
+      "std_auc_drop": 0.07923042574243178,
+      "fold_values": [
+        0.16805555555555557,
+        0.00405092592592583,
+        0.17521994134897353,
+        0.06104166666666666,
+        0.03038277511961729
+      ]
+    },
+    {
+      "model": "v2_logistic_regression",
+      "feature": "distance_to_listed_tourist_place",
+      "mean_auc_drop": -0.004505130535690819,
+      "std_auc_drop": 0.010283571011759349,
+      "fold_values": [
+        -0.00025252525252524304,
+        0.0009259259259258356,
+        -0.011803519061583573,
+        -0.018333333333333347,
+        0.0069377990430622314
+      ]
+    },
+    {
+      "model": "v2_logistic_regression",
+      "feature": "road_distance_km",
+      "mean_auc_drop": 0.07262111351203031,
+      "std_auc_drop": 0.02485981906609219,
+      "fold_values": [
+        0.05239898989898993,
+        0.05729166666666656,
+        0.06414956011730202,
+        0.07479166666666666,
+        0.11447368421052637
+      ]
+    },
+    {
+      "model": "v2_logistic_regression",
+      "feature": "distance_to_nearest_town_center_km",
+      "mean_auc_drop": -0.004432137232540478,
+      "std_auc_drop": 0.007195691942235151,
+      "fold_values": [
+        0.0,
+        -0.003935185185185269,
+        -0.00124633431085045,
+        -0.016979166666666674,
+        0.0
+      ]
+    },
+    {
+      "model": "v2_logistic_regression",
+      "feature": "distance_to_major_road_km",
+      "mean_auc_drop": 0.06767069142185864,
+      "std_auc_drop": 0.03111975413727043,
+      "fold_values": [
+        0.016161616161616165,
+        0.09999999999999992,
+        0.0793255131964809,
+        0.06906249999999999,
+        0.07380382775119623
+      ]
+    },
+    {
+      "model": "v2_logistic_regression",
+      "feature": "attraction_count_within_5km",
+      "mean_auc_drop": 0.054768314154562014,
+      "std_auc_drop": 0.03422519069130003,
+      "fold_values": [
+        -0.002272727272727254,
+        0.06608796296296289,
+        0.06502932551319647,
+        0.08937499999999995,
+        0.05562200956937804
+      ]
+    }
+  ],
+  "empty_rural_cells_by_display_band": {
+    "<0.40": 483,
+    ">=0.60": 229,
+    "0.40 to <0.60": 219
+  },
+  "display_bands": {
+    "rule": "Fixed before scoring: <0.40, 0.40 to <0.60, >=0.60. These bins count cells. They were not tuned on combined out-of-fold predictions.",
+    "wording": "Candidate site pattern"
+  },
+  "probability_note": "The training sample has 110 positives and 110 negatives. The rural population has 110 positives and 931 empty cells. Raw predict_proba values are not the population probability that a rural cell contains an Airbnb.",
+  "youden_note": "Binary operating metrics use Youden's J chosen on inner grouped scores from the outer training municipalities only. The cut is not a business suitability threshold. The published baseline accuracy and macro F1 remain the existing screen's 0.5 class cut, replicated separately.",
+  "limitations": [
+    "The model represents observational association, not causation.",
+    "The negative examples are sampled rather than all empty rural cells.",
+    "The positive sample is limited to 110 rural cells.",
+    "Generalization across municipalities and geography remains uncertain.",
+    "The score does not directly predict revenue, occupancy, costs, legality, utilities, flood risk, building feasibility, or investor return.",
+    "A high score means stronger similarity to observed rural STR-location conditions. It does not prove that an STR will succeed."
+  ]
+}

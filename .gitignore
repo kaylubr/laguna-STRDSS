@@ -38,9 +38,7 @@ pip-delete-this-directory.txt
 
 .commandcode/
 
-# Research data — raw AirROI/PSA payloads are not redistributed; see data/README.md
-data/*
-!data/README.md
+
 
 # Unit test / coverage reports
 htmlcov/
