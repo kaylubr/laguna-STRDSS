@@ -18,6 +18,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "uvicorn>=0.53.0",
     "osmium>=4.3.1",
+    "streamlit>=1.65.0",
 ]
 
 [dependency-groups]

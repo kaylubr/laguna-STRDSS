@@ -1,0 +1,212 @@
+{
+  "grid_m": 500,
+  "seed_42": {
+    "roc_auc": 0.7756046551039055,
+    "pr_auc": 0.7422838203903028,
+    "macro_f1": 0.7261030106044866,
+    "classification": {
+      "accuracy": 0.7336065573770492,
+      "precision_listed": 0.6993006993006993,
+      "recall_listed": 0.819672131147541,
+      "f1_listed": 0.7547169811320755,
+      "precision_empty": 0.7821782178217822,
+      "recall_empty": 0.6475409836065574,
+      "f1_empty": 0.7085201793721974,
+      "macro_f1": 0.7316185802521364,
+      "true_negative": 79,
+      "false_positive": 43,
+      "false_negative": 22,
+      "true_positive": 100
+    },
+    "permutation": [
+      {
+        "feature": "road_distance_km",
+        "mean_auc_drop": 0.12057850861726419
+      },
+      {
+        "feature": "distance_to_major_road_km",
+        "mean_auc_drop": 0.0575196377280335
+      },
+      {
+        "feature": "distance_to_nearest_town_center_km",
+        "mean_auc_drop": 0.031954539180626094
+      },
+      {
+        "feature": "distance_to_listed_tourist_place",
+        "mean_auc_drop": 0.014823965939108322
+      },
+      {
+        "feature": "attraction_count_within_5km",
+        "mean_auc_drop": 0.011758123788033786
+      },
+      {
+        "feature": "listed_places_within_radius",
+        "mean_auc_drop": 0.003539504201723041
+      }
+    ]
+  },
+  "ten_seeds": {
+    "roc_auc": {
+      "mean": 0.7393590703971522,
+      "min": 0.7038794813119755,
+      "max": 0.7756046551039055,
+      "values": [
+        0.7332882862498596,
+        0.7585272245015248,
+        0.7609210068053052,
+        0.7756046551039055,
+        0.7073972471436238,
+        0.7379347601647741,
+        0.7118968994135411,
+        0.7399520915879612,
+        0.7641890516890517,
+        0.7038794813119755
+      ]
+    },
+    "pr_auc": {
+      "mean": 0.717880154795062,
+      "min": 0.6767878736499906,
+      "max": 0.7677815560183762,
+      "values": [
+        0.7152614829953892,
+        0.6998658489325573,
+        0.7547443947909513,
+        0.7422838203903028,
+        0.6882620819948186,
+        0.7244012467283423,
+        0.6767878736499906,
+        0.7188519444688561,
+        0.7677815560183762,
+        0.6905612979810354
+      ]
+    },
+    "draws": [
+      {
+        "seed": 7,
+        "training_rows": 244,
+        "roc_auc": 0.7332882862498596,
+        "pr_auc": 0.7152614829953892,
+        "macro_f1": 0.6674243469895644
+      },
+      {
+        "seed": 13,
+        "training_rows": 244,
+        "roc_auc": 0.7585272245015248,
+        "pr_auc": 0.6998658489325573,
+        "macro_f1": 0.6898636829973235
+      },
+      {
+        "seed": 21,
+        "training_rows": 244,
+        "roc_auc": 0.7609210068053052,
+        "pr_auc": 0.7547443947909513,
+        "macro_f1": 0.6871816797468694
+      },
+      {
+        "seed": 42,
+        "training_rows": 244,
+        "roc_auc": 0.7756046551039055,
+        "pr_auc": 0.7422838203903028,
+        "macro_f1": 0.7261030106044866
+      },
+      {
+        "seed": 99,
+        "training_rows": 244,
+        "roc_auc": 0.7073972471436238,
+        "pr_auc": 0.6882620819948186,
+        "macro_f1": 0.6429648174567582
+      },
+      {
+        "seed": 101,
+        "training_rows": 244,
+        "roc_auc": 0.7379347601647741,
+        "pr_auc": 0.7244012467283423,
+        "macro_f1": 0.6642931823686409
+      },
+      {
+        "seed": 202,
+        "training_rows": 244,
+        "roc_auc": 0.7118968994135411,
+        "pr_auc": 0.6767878736499906,
+        "macro_f1": 0.6423082157561184
+      },
+      {
+        "seed": 303,
+        "training_rows": 244,
+        "roc_auc": 0.7399520915879612,
+        "pr_auc": 0.7188519444688561,
+        "macro_f1": 0.6686676887598377
+      },
+      {
+        "seed": 404,
+        "training_rows": 244,
+        "roc_auc": 0.7641890516890517,
+        "pr_auc": 0.7677815560183762,
+        "macro_f1": 0.6362889335763839
+      },
+      {
+        "seed": 505,
+        "training_rows": 244,
+        "roc_auc": 0.7038794813119755,
+        "pr_auc": 0.6905612979810354,
+        "macro_f1": 0.6298040224806771
+      }
+    ]
+  },
+  "all_empty": {
+    "rows": 4122,
+    "roc_auc": 0.7226604339022058,
+    "pr_auc": 0.09055570140497936,
+    "macro_f1": 0.36027266255705886,
+    "permutation": [
+      {
+        "feature": "road_distance_km",
+        "mean_auc_drop": 0.10860413538938404
+      },
+      {
+        "feature": "distance_to_major_road_km",
+        "mean_auc_drop": 0.06864436111168234
+      },
+      {
+        "feature": "distance_to_nearest_town_center_km",
+        "mean_auc_drop": 0.006864019868576576
+      },
+      {
+        "feature": "distance_to_listed_tourist_place",
+        "mean_auc_drop": 0.006706191218872981
+      },
+      {
+        "feature": "listed_places_within_radius",
+        "mean_auc_drop": 0.004145148093033502
+      },
+      {
+        "feature": "attraction_count_within_5km",
+        "mean_auc_drop": -0.008649783862863303
+      }
+    ]
+  },
+  "one_km_reference": {
+    "rows": 220,
+    "listed": 110,
+    "empty_sampled": 110,
+    "empty_all": 931,
+    "roc_auc": 0.7274258287458627,
+    "pr_auc": 0.7128459949005714,
+    "macro_f1": 0.6561302663653507,
+    "accuracy": 0.6727272727272727,
+    "precision_listed": 0.6338028169014085,
+    "recall_listed": 0.8181818181818182,
+    "f1_listed": 0.7142857142857143,
+    "tn": 58,
+    "fp": 52,
+    "fn": 20,
+    "tp": 90,
+    "ten_roc_mean": 0.6946731118128164,
+    "ten_roc_min": 0.6205890744389195,
+    "ten_roc_max": 0.7632940501436742,
+    "ten_pr_mean": 0.6667287733817282,
+    "all_empty_roc": 0.6945554339703915,
+    "all_empty_pr": 0.2193783062293458,
+    "all_empty_f1": 0.4786327985165924
+  }
+}

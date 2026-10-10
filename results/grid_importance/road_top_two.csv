@@ -1,0 +1,7 @@
+cell_size_m,population,runs,runs_where_roads_are_top_two
+500,balanced,10,10
+1000,balanced,10,9
+1500,balanced,10,7
+500,all_empty,1,1
+1000,all_empty,1,1
+1500,all_empty,1,1
